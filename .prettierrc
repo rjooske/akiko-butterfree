@@ -1,0 +1,10 @@
+{
+  "htmlWhitespaceSensitivity": "ignore",
+  "plugins": [
+    "prettier-plugin-svelte",
+    "@trivago/prettier-plugin-sort-imports"
+  ],
+  "importOrder": ["^@/", "^[./]"],
+  "importOrderSortSpecifiers": true,
+  "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }]
+}
