@@ -216,6 +216,13 @@
     pickerResetCorners(picker);
   }
 
+  function handlePageStep(delta: 1 | -1) {
+    const next = picker.page + delta;
+    if (next < 1 || next > PAGE_COUNTS[year]) return;
+    picker.page = next;
+    pickerResetCorners(picker);
+  }
+
   function enterPreview() {
     mode = "preview";
     if (!pickerCanPreview(pickers[previewYear])) {
@@ -225,14 +232,17 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (mode !== "preview") return;
     const active = document.activeElement;
-    if (
+    const inTextInput =
       active instanceof HTMLInputElement &&
       active.type !== "radio" &&
-      active.type !== "range"
-    )
-      return;
+      active.type !== "range";
+    if (!inTextInput && mode === "picker") {
+      if (e.key === "j") { handlePageStep(1); return; }
+      if (e.key === "k") { handlePageStep(-1); return; }
+    }
+    if (mode !== "preview") return;
+    if (inTextInput) return;
     for (const y of YEARS) {
       if (e.key === String(y % 10) && pickerCanPreview(pickers[y])) {
         previewYear = y;
@@ -288,7 +298,7 @@
   <div>
     {#if mode === "picker"}
       <div class="controls">
-        <label>
+        <div class="page-control">
           ページ
           <input
             type="number"
@@ -297,7 +307,9 @@
             value={picker.page}
             oninput={handlePageInput}
           />
-        </label>
+          <button onclick={() => handlePageStep(-1)} title="前のページ (k)">↑</button>
+          <button onclick={() => handlePageStep(1)} title="次のページ (j)">↓</button>
+        </div>
         <label>
           拡大
           <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
@@ -463,6 +475,38 @@
       display: flex;
       align-items: center;
       gap: $sp-sm;
+    }
+  }
+
+  .page-control {
+    display: flex;
+    align-items: center;
+    gap: $sp-sm;
+
+    input[type="number"] {
+      width: 4em;
+      appearance: textfield;
+      -moz-appearance: textfield;
+      &::-webkit-inner-spin-button,
+      &::-webkit-outer-spin-button {
+        appearance: none;
+      }
+    }
+
+    button {
+      border: 1px solid $color-border;
+      border-radius: 4px;
+      background: transparent;
+      color: $color-text;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: 1;
+      padding: 2px 6px;
+      &:hover {
+        border-color: $color-accent;
+        color: $color-accent;
+      }
     }
   }
 
