@@ -231,15 +231,30 @@
     }
   }
 
+  function handleTabStep(delta: 1 | -1) {
+    const n = YEARS.length + 1;
+    const current = mode === "preview" ? YEARS.length : YEARS.indexOf(year);
+    const next = (current + delta + n) % n;
+    if (next === YEARS.length) {
+      enterPreview();
+    } else {
+      selectYear(YEARS[next]);
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     const active = document.activeElement;
     const inTextInput =
       active instanceof HTMLInputElement &&
       active.type !== "radio" &&
       active.type !== "range";
-    if (!inTextInput && mode === "picker") {
-      if (e.key === "j") { handlePageStep(1); return; }
-      if (e.key === "k") { handlePageStep(-1); return; }
+    if (!inTextInput) {
+      if (e.key === "h") { handleTabStep(-1); return; }
+      if (e.key === "l") { handleTabStep(1); return; }
+      if (mode === "picker") {
+        if (e.key === "j") { handlePageStep(1); return; }
+        if (e.key === "k") { handlePageStep(-1); return; }
+      }
     }
     if (mode !== "preview") return;
     if (inTextInput) return;
@@ -271,24 +286,28 @@
       <button
         onclick={() => selectYear(2023)}
         aria-current={mode === "picker" && year === 2023 ? "true" : undefined}
+        title="2023 (h/l)"
       >
         2023
       </button>
       <button
         onclick={() => selectYear(2024)}
         aria-current={mode === "picker" && year === 2024 ? "true" : undefined}
+        title="2024 (h/l)"
       >
         2024
       </button>
       <button
         onclick={() => selectYear(2025)}
         aria-current={mode === "picker" && year === 2025 ? "true" : undefined}
+        title="2025 (h/l)"
       >
         2025
       </button>
       <button
         onclick={enterPreview}
         aria-current={mode === "preview" ? "true" : undefined}
+        title="プレビュー (h/l)"
       >
         プレビュー
       </button>
@@ -358,7 +377,7 @@
 
       <div class="controls">
         {#each YEARS as y}
-          <label>
+          <label title={pickerCanPreview(pickers[y]) ? `${y} (${y % 10})` : undefined}>
             <input
               type="radio"
               name="previewYear"
