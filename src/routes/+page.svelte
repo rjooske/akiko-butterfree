@@ -258,16 +258,36 @@
       <span>あきこバタフリー</span>
     </h1>
     <nav>
-      <button onclick={() => selectYear(2023)}>2023</button>
-      <button onclick={() => selectYear(2024)}>2024</button>
-      <button onclick={() => selectYear(2025)}>2025</button>
-      <button onclick={enterPreview}>プレビュー</button>
+      <button
+        onclick={() => selectYear(2023)}
+        aria-current={mode === "picker" && year === 2023 ? "true" : undefined}
+      >
+        2023
+      </button>
+      <button
+        onclick={() => selectYear(2024)}
+        aria-current={mode === "picker" && year === 2024 ? "true" : undefined}
+      >
+        2024
+      </button>
+      <button
+        onclick={() => selectYear(2025)}
+        aria-current={mode === "picker" && year === 2025 ? "true" : undefined}
+      >
+        2025
+      </button>
+      <button
+        onclick={enterPreview}
+        aria-current={mode === "preview" ? "true" : undefined}
+      >
+        プレビュー
+      </button>
     </nav>
   </header>
 
   <div>
     {#if mode === "picker"}
-      <div>
+      <div class="controls">
         <label>
           ページ
           <input
@@ -285,7 +305,7 @@
         </label>
       </div>
 
-      <div>
+      <div class="info">
         <span>次のクリック: {nextClickToJa(picker.nextClick)}</span>
         <span>
           左上: {picker.topLeft
@@ -314,7 +334,7 @@
         {/if}
       </div>
     {:else}
-      <div>
+      <div class="controls">
         <label>
           拡大
           <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
@@ -322,7 +342,7 @@
         </label>
       </div>
 
-      <div>
+      <div class="controls">
         {#each YEARS as y}
           <label>
             <input
@@ -363,6 +383,12 @@
     height: 100%;
   }
 
+  :global(body) {
+    background: $color-bg;
+    color: $color-text;
+    font-family: $font-sans;
+  }
+
   main {
     position: fixed;
     inset: 0;
@@ -381,20 +407,73 @@
     align-items: center;
     gap: $sp-md;
     padding: $sp-sm $sp-md;
+    background: $color-surface;
+    border-bottom: 1px solid $color-border;
 
     h1 {
       margin: 0;
       font-size: $font-h1;
+      font-weight: normal;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: $sp-sm;
       img {
-        height: 1em;
-        vertical-align: middle;
+        height: 1.5em;
       }
     }
 
     nav {
       display: flex;
       gap: $sp-sm;
+
+      button {
+        padding: 4px 10px;
+        border: 1px solid $color-border;
+        border-radius: 4px;
+        background: transparent;
+        color: $color-text;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: inherit;
+
+        &:hover {
+          border-color: $color-accent;
+          color: $color-accent;
+        }
+
+        &[aria-current="true"] {
+          background: $color-accent;
+          border-color: $color-accent;
+          color: $color-surface;
+        }
+      }
     }
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: $sp-md;
+    padding: $sp-sm $sp-md;
+    border-bottom: 1px solid $color-border;
+    background: $color-surface;
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: $sp-sm;
+    }
+  }
+
+  .info {
+    display: flex;
+    align-items: center;
+    gap: $sp-md;
+    padding: $sp-sm $sp-md;
+    font-size: 13px;
+    color: $color-text-muted;
+    font-family: $font-mono;
   }
 
   .viewer {
