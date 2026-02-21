@@ -212,6 +212,7 @@
     const value = e.currentTarget.valueAsNumber;
     if (!Number.isInteger(value) || value < 1 || value > PAGE_COUNTS[year])
       return;
+    if (value === picker.page) return;
     picker.page = value;
     pickerResetCorners(picker);
   }
