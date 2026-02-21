@@ -33,6 +33,27 @@ SVG assets live in `static/tables/{year}/{zero-padded-page}.svg` (e.g. `static/t
 
 All reactive state is Svelte 5 runes (`$state`, `$derived`, `$effect`). State is persisted to `localStorage` under `STORAGE_KEY` (`"akiko-butterfree"`), with typed encode/decode functions that return `undefined` on any validation failure.
 
+SVG `<img>` elements are wrapped in `{#if browser}` to prevent hydration mismatches between the server-prerendered default state and the localStorage-restored client state.
+
+### Keyboard shortcuts
+
+| Key             | Mode    | Action                                              |
+| --------------- | ------- | --------------------------------------------------- |
+| `h` / `l`       | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
+| `j` / `k`       | picker  | next / previous page                                |
+| `3` / `4` / `5` | preview | switch to that year (only if corners are set)       |
+
+### Styling
+
+Shared SCSS variables live in `src/routes/variables.scss` (imported as `@use "./variables" as *`):
+
+- **Spacing**: `$sp-xs` (4px), `$sp-sm` (8px), `$sp-md` (16px), `$sp-lg` (24px)
+- **Colors**: `$color-bg`, `$color-surface`, `$color-border`, `$color-text`, `$color-text-muted`, `$color-accent`
+- **Fonts**: `$font-sans`, `$font-mono`; size: `$font-h1`
+- **Misc**: `$marker-size`
+
+Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.info` (muted monospace status row), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons).
+
 ## Code conventions
 
 - **Script organisation**: each type is immediately followed by its related pure functions; pure functions come before impure ones; event handlers (which mutate `$state`) come last.
