@@ -244,106 +244,186 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<h1>
-  <img src="" alt="あきこバタフリー" />
-  <span>あきこバタフリー</span>
-</h1>
-
-<div>
-  <button onclick={() => selectYear(2023)}>2023</button>
-  <button onclick={() => selectYear(2024)}>2024</button>
-  <button onclick={() => selectYear(2025)}>2025</button>
-  <button onclick={enterPreview}>プレビュー</button>
-</div>
-
 {#snippet cornerMarker(corner: Corner, color: string)}
   <div
-    style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; background: {color}; border-radius: 50%; transform: translate(calc({corner.x * scale}px - 5px), calc({corner.y * scale}px - 5px)); pointer-events: none;"
+    style="background: {color}; transform: translate(calc({corner.x *
+      scale}px - 5px), calc({corner.y * scale}px - 5px));"
   ></div>
 {/snippet}
 
-{#if mode === "picker"}
-  <div>
-    <label>
-      ページ
-      <input
-        type="number"
-        min="1"
-        max={PAGE_COUNTS[year]}
-        value={picker.page}
-        oninput={handlePageInput}
-      />
-    </label>
-    <label>
-      拡大
-      <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
-      {scale.toFixed(1)}
-    </label>
-  </div>
+<main data-mode={mode}>
+  <header>
+    <h1>
+      <img src="akiko-butterfree.png" alt="あきこバタフリー" />
+      <span>あきこバタフリー</span>
+    </h1>
+    <nav>
+      <button onclick={() => selectYear(2023)}>2023</button>
+      <button onclick={() => selectYear(2024)}>2024</button>
+      <button onclick={() => selectYear(2025)}>2025</button>
+      <button onclick={enterPreview}>プレビュー</button>
+    </nav>
+  </header>
 
   <div>
-    <span>
-      次のクリック: {nextClickToJa(picker.nextClick)}
-    </span>
-    <span>
-      左上: {picker.topLeft
-        ? `(${picker.topLeft.x.toFixed(1)}, ${picker.topLeft.y.toFixed(1)})`
-        : "—"}
-    </span>
-    <span>
-      右下: {picker.bottomRight
-        ? `(${picker.bottomRight.x.toFixed(1)}, ${picker.bottomRight.y.toFixed(1)})`
-        : "—"}
-    </span>
-  </div>
+    {#if mode === "picker"}
+      <div>
+        <label>
+          ページ
+          <input
+            type="number"
+            min="1"
+            max={PAGE_COUNTS[year]}
+            value={picker.page}
+            oninput={handlePageInput}
+          />
+        </label>
+        <label>
+          拡大
+          <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+          {scale.toFixed(1)}
+        </label>
+      </div>
 
-  <div style="width: 100%; height: 80vh; overflow: auto; position: relative;">
-    <img
-      src={svgUrl(year, picker.page)}
-      alt="{picker.page}ページ目"
-      style="width: {scale * 100}%; display: block; cursor: crosshair;"
-      onclick={handleClick}
-    />
-    {#if picker.topLeft}
-      {@render cornerMarker(picker.topLeft, "rgba(255, 0, 0, 0.5)")}
-    {/if}
-    {#if picker.bottomRight}
-      {@render cornerMarker(picker.bottomRight, "rgba(0, 200, 0, 0.5)")}
-    {/if}
-  </div>
-{:else}
-  <div>
-    <label>
-      拡大
-      <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
-      {scale.toFixed(1)}
-    </label>
-  </div>
+      <div>
+        <span>次のクリック: {nextClickToJa(picker.nextClick)}</span>
+        <span>
+          左上: {picker.topLeft
+            ? `(${picker.topLeft.x.toFixed(1)}, ${picker.topLeft.y.toFixed(1)})`
+            : "—"}
+        </span>
+        <span>
+          右下: {picker.bottomRight
+            ? `(${picker.bottomRight.x.toFixed(1)}, ${picker.bottomRight.y.toFixed(1)})`
+            : "—"}
+        </span>
+      </div>
 
-  <div>
-    {#each YEARS as y}
-      <label>
-        <input
-          type="radio"
-          name="previewYear"
-          value={y}
-          bind:group={previewYear}
-          disabled={!pickerCanPreview(pickers[y])}
+      <div class="viewer">
+        <img
+          src={svgUrl(year, picker.page)}
+          alt="{picker.page}ページ目"
+          style="width: {scale * 100}%;"
+          onclick={handleClick}
         />
-        {y}
-      </label>
-    {/each}
-  </div>
+        {#if picker.topLeft}
+          {@render cornerMarker(picker.topLeft, "rgba(255, 0, 0, 0.5)")}
+        {/if}
+        {#if picker.bottomRight}
+          {@render cornerMarker(picker.bottomRight, "rgba(0, 200, 0, 0.5)")}
+        {/if}
+      </div>
+    {:else}
+      <div>
+        <label>
+          拡大
+          <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+          {scale.toFixed(1)}
+        </label>
+      </div>
 
-  <div style="width: 100%; height: 80vh; overflow: auto; position: relative;">
-    {#each previewItems as { y, t }}
-      <img
-        src={svgUrl(y, pickers[y].page)}
-        alt="{y}年{pickers[y].page}ページ目"
-        style="position: absolute; top: 0; left: 0; width: 100%; transform-origin: 0 0; transform: translate({t.tx *
-          scale}px, {t.ty * scale}px) scale({t.sx *
-          scale}); opacity: {previewYear === y ? 1 : 0}; pointer-events: none;"
-      />
-    {/each}
+      <div>
+        {#each YEARS as y}
+          <label>
+            <input
+              type="radio"
+              name="previewYear"
+              value={y}
+              bind:group={previewYear}
+              disabled={!pickerCanPreview(pickers[y])}
+            />
+            {y}
+          </label>
+        {/each}
+      </div>
+
+      <div class="viewer">
+        {#each previewItems as { y, t }}
+          <img
+            src={svgUrl(y, pickers[y].page)}
+            alt="{y}年{pickers[y].page}ページ目"
+            style="transform: translate({t.tx * scale}px, {t.ty *
+              scale}px) scale({t.sx * scale}); opacity: {previewYear === y
+              ? 1
+              : 0};"
+          />
+        {/each}
+      </div>
+    {/if}
   </div>
-{/if}
+</main>
+
+<style lang="scss">
+  @use "./variables" as *;
+
+  :global(html),
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  main {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: $sp-md;
+    padding: $sp-sm $sp-md;
+
+    h1 {
+      margin: 0;
+      font-size: $font-h1;
+      img {
+        height: 1em;
+        vertical-align: middle;
+      }
+    }
+
+    nav {
+      display: flex;
+      gap: $sp-sm;
+    }
+  }
+
+  .viewer {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+
+    > img {
+      display: block;
+      cursor: crosshair;
+    }
+
+    > div {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: $marker-size;
+      height: $marker-size;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+  }
+
+  [data-mode="preview"] .viewer > img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+</style>

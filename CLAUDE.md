@@ -13,6 +13,7 @@ npm run lint      # prettier --check
 ```
 
 For a GitHub Pages build (sets the base path):
+
 ```bash
 BASE_PATH=/repo-name npm run build
 ```
