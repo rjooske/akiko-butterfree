@@ -417,7 +417,7 @@
   header {
     display: flex;
     align-items: center;
-    gap: $sp-md;
+    gap: $sp-lg;
     padding: $sp-sm $sp-md;
     background: $color-surface;
     border-bottom: 1px solid $color-border;
@@ -474,7 +474,16 @@
     label {
       display: flex;
       align-items: center;
-      gap: $sp-sm;
+      gap: $sp-xs;
+
+      input[type="radio"] {
+        margin: 0;
+      }
+
+      &:has(input:disabled) {
+        color: $color-text-muted;
+        cursor: default;
+      }
     }
   }
 
