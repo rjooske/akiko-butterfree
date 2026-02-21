@@ -22,7 +22,8 @@ BASE_PATH=/repo-name npm run build
 
 Single-page SvelteKit app statically prerendered (`src/routes/+layout.ts` exports `prerender = true`) and deployed to GitHub Pages via `.github/workflows/deploy.yml`.
 
-**The entire application lives in one file: `src/routes/+page.svelte`.**
+**The application state and validation logic lives in `src/lib/storage.ts`.**
+**The UI and interaction logic lives in `src/routes/+page.svelte`.**
 
 The app overlays scanned schedule pages from multiple years (2023/2024/2025) to compare them visually. Two modes:
 

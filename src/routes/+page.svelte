@@ -1,125 +1,18 @@
 <script lang="ts">
   import { browser } from "$app/environment";
-
-  const PAGE_COUNTS = { 2023: 118, 2024: 121, 2025: 125 } as const;
-  type Year = keyof typeof PAGE_COUNTS;
-  const YEARS = [2023, 2024, 2025] as const;
-
-  function isYear(v: unknown): v is Year {
-    return v === 2023 || v === 2024 || v === 2025;
-  }
-
-  type Corner = { x: number; y: number };
-
-  function cornerDecode(u: unknown): Corner | undefined {
-    if (u === null || u === undefined) return undefined;
-    if (typeof u !== "object") return undefined;
-    const o = u as Record<string, unknown>;
-    if (typeof o.x !== "number" || typeof o.y !== "number") return undefined;
-    return { x: o.x, y: o.y };
-  }
-
-  type NextClick = "top-left" | "bottom-right";
-
-  function nextClickToJa(n: NextClick): string {
-    return n === "top-left" ? "左上" : "右下";
-  }
-
-  type Picker = {
-    page: number;
-    topLeft: Corner | undefined;
-    bottomRight: Corner | undefined;
-    nextClick: NextClick;
-  };
-
-  function pickerDefault(): Picker {
-    return {
-      page: 1,
-      topLeft: undefined,
-      bottomRight: undefined,
-      nextClick: "top-left",
-    };
-  }
-
-  function pickerCanPreview(p: Picker): boolean {
-    return p.topLeft !== undefined && p.bottomRight !== undefined;
-  }
-
-  function pickerDecode(u: unknown, year: Year): Picker | undefined {
-    if (typeof u !== "object" || u === null) return undefined;
-    const o = u as Record<string, unknown>;
-    if (typeof o.page !== "number" || !Number.isInteger(o.page))
-      return undefined;
-    if (o.page < 1 || o.page > PAGE_COUNTS[year]) return undefined;
-    if (o.nextClick !== "top-left" && o.nextClick !== "bottom-right")
-      return undefined;
-    const topLeft = cornerDecode(o.topLeft);
-    const bottomRight = cornerDecode(o.bottomRight);
-    if (o.topLeft !== undefined && o.topLeft !== null && topLeft === undefined)
-      return undefined;
-    if (
-      o.bottomRight !== undefined &&
-      o.bottomRight !== null &&
-      bottomRight === undefined
-    )
-      return undefined;
-    return { page: o.page, topLeft, bottomRight, nextClick: o.nextClick };
-  }
-
-  function svgUrl(year: Year, page: number): string {
-    return `${import.meta.env.BASE_URL}tables/${year}/${String(page).padStart(3, "0")}.svg`;
-  }
-
-  type AlignTransform = { tx: number; ty: number; sx: number };
-
-  type Storage = {
-    mode: "picker" | "preview";
-    year: Year;
-    scale: number;
-    pickers: Record<Year, Picker>;
-    previewYear: Year;
-  };
-
-  function storageDefault(): Storage {
-    return {
-      mode: "picker",
-      year: 2023,
-      scale: 1.0,
-      pickers: {
-        2023: pickerDefault(),
-        2024: pickerDefault(),
-        2025: pickerDefault(),
-      },
-      previewYear: 2023,
-    };
-  }
-
-  function storageEncode(s: Storage): string {
-    return JSON.stringify(s);
-  }
-
-  function storageDecode(u: unknown): Storage | undefined {
-    if (typeof u !== "object" || u === null) return undefined;
-    const o = u as Record<string, unknown>;
-    if (o.mode !== "picker" && o.mode !== "preview") return undefined;
-    if (!isYear(o.year)) return undefined;
-    if (typeof o.scale !== "number") return undefined;
-    if (typeof o.pickers !== "object" || o.pickers === null) return undefined;
-    const rawPickers = o.pickers as Record<string, unknown>;
-    const entries = YEARS.map(
-      (y) => [y, pickerDecode(rawPickers[String(y)], y)] as const,
-    );
-    if (entries.some(([, p]) => p === undefined)) return undefined;
-    const pickers = Object.fromEntries(entries) as Record<Year, Picker>;
-    if (!isYear(o.previewYear)) return undefined;
-    return {
-      mode: o.mode,
-      year: o.year,
-      scale: o.scale,
-      pickers,
-      previewYear: o.previewYear,
-    };
-  }
+  import {
+    type Corner,
+    type NextClick,
+    PAGE_COUNTS,
+    type Picker,
+    type Storage,
+    YEARS,
+    type Year,
+    pickerCanPreview,
+    storageDecode,
+    storageDefault,
+    storageEncode,
+  } from "$lib/storage";
 
   const STORAGE_KEY = "akiko-butterfree";
 
@@ -136,6 +29,21 @@
     }
   }
 
+  function storageSave(s: Storage): void {
+    if (!browser) return;
+    localStorage.setItem(STORAGE_KEY, storageEncode(s));
+  }
+
+  function nextClickToJa(n: NextClick): string {
+    return n === "top-left" ? "左上" : "右下";
+  }
+
+  function svgUrl(year: Year, page: number): string {
+    return `${import.meta.env.BASE_URL}tables/${year}/${String(page).padStart(3, "0")}.svg`;
+  }
+
+  type AlignTransform = { tx: number; ty: number; sx: number };
+
   const initial = storageLoad();
   let mode = $state(initial.mode);
   let year = $state(initial.year);
@@ -144,11 +52,7 @@
   let previewYear = $state(initial.previewYear);
 
   $effect(() => {
-    if (!browser) return;
-    localStorage.setItem(
-      STORAGE_KEY,
-      storageEncode({ mode, year, scale, pickers, previewYear }),
-    );
+    storageSave({ mode, year, scale, pickers, previewYear });
   });
 
   let picker = $derived(pickers[year]);
@@ -162,12 +66,14 @@
         return { 2023: undefined, 2024: undefined, 2025: undefined };
 
       const ref = pickers[refYear];
-      const rcw = ref.bottomRight!.x - ref.topLeft!.x;
+      const refC = ref.corners[ref.page];
+      const rcw = refC.bottomRight!.x - refC.topLeft!.x;
 
       function compute(p: Picker): AlignTransform | undefined {
-        if (!p.topLeft || !p.bottomRight) return undefined;
-        const sx = rcw / (p.bottomRight.x - p.topLeft.x);
-        return { tx: -sx * p.topLeft.x, ty: -sx * p.topLeft.y, sx };
+        const c = p.corners[p.page];
+        if (!c?.topLeft || !c?.bottomRight) return undefined;
+        const sx = rcw / (c.bottomRight.x - c.topLeft.x);
+        return { tx: -sx * c.topLeft.x, ty: -sx * c.topLeft.y, sx };
       }
 
       return {
@@ -190,20 +96,28 @@
     year = y;
   }
 
-  function pickerResetCorners(p: Picker) {
-    p.topLeft = undefined;
-    p.bottomRight = undefined;
-    p.nextClick = "top-left";
+  function pickerSetPage(p: Picker, newPage: number) {
+    p.page = newPage;
+    const c = p.corners[newPage];
+    p.nextClick =
+      c?.topLeft !== undefined && c?.bottomRight === undefined
+        ? "bottom-right"
+        : "top-left";
   }
 
   function handleClick(e: MouseEvent) {
     const x = e.offsetX / scale;
     const y = e.offsetY / scale;
+    const page = picker.page;
     if (picker.nextClick === "top-left") {
-      picker.topLeft = { x, y };
+      picker.corners[page] = { topLeft: { x, y }, bottomRight: undefined };
       picker.nextClick = "bottom-right";
     } else {
-      picker.bottomRight = { x, y };
+      const existing = picker.corners[page];
+      picker.corners[page] = {
+        topLeft: existing?.topLeft,
+        bottomRight: { x, y },
+      };
       picker.nextClick = "top-left";
     }
   }
@@ -213,15 +127,13 @@
     if (!Number.isInteger(value) || value < 1 || value > PAGE_COUNTS[year])
       return;
     if (value === picker.page) return;
-    picker.page = value;
-    pickerResetCorners(picker);
+    pickerSetPage(picker, value);
   }
 
   function handlePageStep(delta: 1 | -1) {
     const next = picker.page + delta;
     if (next < 1 || next > PAGE_COUNTS[year]) return;
-    picker.page = next;
-    pickerResetCorners(picker);
+    pickerSetPage(picker, next);
   }
 
   function enterPreview() {
@@ -250,11 +162,23 @@
       active.type !== "radio" &&
       active.type !== "range";
     if (!inTextInput) {
-      if (e.key === "h") { handleTabStep(-1); return; }
-      if (e.key === "l") { handleTabStep(1); return; }
+      if (e.key === "h") {
+        handleTabStep(-1);
+        return;
+      }
+      if (e.key === "l") {
+        handleTabStep(1);
+        return;
+      }
       if (mode === "picker") {
-        if (e.key === "j") { handlePageStep(1); return; }
-        if (e.key === "k") { handlePageStep(-1); return; }
+        if (e.key === "j") {
+          handlePageStep(1);
+          return;
+        }
+        if (e.key === "k") {
+          handlePageStep(-1);
+          return;
+        }
       }
     }
     if (mode !== "preview") return;
@@ -317,6 +241,9 @@
 
   <div>
     {#if mode === "picker"}
+      {@const tl = picker.corners[picker.page]?.topLeft}
+      {@const br = picker.corners[picker.page]?.bottomRight}
+
       <div class="controls">
         <div class="page-control">
           ページ
@@ -327,8 +254,12 @@
             value={picker.page}
             oninput={handlePageInput}
           />
-          <button onclick={() => handlePageStep(-1)} title="前のページ (k)">↑</button>
-          <button onclick={() => handlePageStep(1)} title="次のページ (j)">↓</button>
+          <button onclick={() => handlePageStep(-1)} title="前のページ (k)">
+            ↑
+          </button>
+          <button onclick={() => handlePageStep(1)} title="次のページ (j)">
+            ↓
+          </button>
         </div>
         <label>
           拡大
@@ -340,14 +271,10 @@
       <div class="info">
         <span>次のクリック: {nextClickToJa(picker.nextClick)}</span>
         <span>
-          左上: {picker.topLeft
-            ? `(${picker.topLeft.x.toFixed(1)}, ${picker.topLeft.y.toFixed(1)})`
-            : "—"}
+          左上: {tl ? `(${tl.x.toFixed(1)}, ${tl.y.toFixed(1)})` : "—"}
         </span>
         <span>
-          右下: {picker.bottomRight
-            ? `(${picker.bottomRight.x.toFixed(1)}, ${picker.bottomRight.y.toFixed(1)})`
-            : "—"}
+          右下: {br ? `(${br.x.toFixed(1)}, ${br.y.toFixed(1)})` : "—"}
         </span>
       </div>
 
@@ -360,11 +287,11 @@
             onclick={handleClick}
           />
         {/if}
-        {#if picker.topLeft}
-          {@render cornerMarker(picker.topLeft, "rgba(255, 0, 0, 0.5)")}
+        {#if tl}
+          {@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}
         {/if}
-        {#if picker.bottomRight}
-          {@render cornerMarker(picker.bottomRight, "rgba(0, 200, 0, 0.5)")}
+        {#if br}
+          {@render cornerMarker(br, "rgba(0, 200, 0, 0.5)")}
         {/if}
       </div>
     {:else}
@@ -378,7 +305,11 @@
 
       <div class="controls">
         {#each YEARS as y}
-          <label title={pickerCanPreview(pickers[y]) ? `${y} (${y % 10})` : undefined}>
+          <label
+            title={pickerCanPreview(pickers[y])
+              ? `${y} (${y % 10})`
+              : undefined}
+          >
             <input
               type="radio"
               name="previewYear"
