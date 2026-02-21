@@ -208,7 +208,10 @@
     }
   }
 
-  function handlePageChange() {
+  function handlePageInput(e: Event & { currentTarget: HTMLInputElement }) {
+    const value = e.currentTarget.valueAsNumber;
+    if (!Number.isInteger(value) || value < 1 || value > PAGE_COUNTS[year]) return;
+    picker.page = value;
     picker.topLeft = undefined;
     picker.bottomRight = undefined;
     picker.nextClick = "top-left";
@@ -262,8 +265,8 @@
         type="number"
         min="1"
         max={PAGE_COUNTS[year]}
-        bind:value={picker.page}
-        oninput={handlePageChange}
+        value={picker.page}
+        oninput={handlePageInput}
       />
     </label>
     <label>
