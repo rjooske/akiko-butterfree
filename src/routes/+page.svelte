@@ -332,12 +332,14 @@
       </div>
 
       <div class="viewer">
-        <img
-          src={svgUrl(year, picker.page)}
-          alt="{picker.page}ページ目"
-          style="width: {scale * 100}%;"
-          onclick={handleClick}
-        />
+        {#if browser}
+          <img
+            src={svgUrl(year, picker.page)}
+            alt="{picker.page}ページ目"
+            style="width: {scale * 100}%;"
+            onclick={handleClick}
+          />
+        {/if}
         {#if picker.topLeft}
           {@render cornerMarker(picker.topLeft, "rgba(255, 0, 0, 0.5)")}
         {/if}
@@ -370,16 +372,18 @@
       </div>
 
       <div class="viewer">
-        {#each previewItems as { y, t }}
-          <img
-            src={svgUrl(y, pickers[y].page)}
-            alt="{y}年{pickers[y].page}ページ目"
-            style="transform: translate({t.tx * scale}px, {t.ty *
-              scale}px) scale({t.sx * scale}); opacity: {previewYear === y
-              ? 1
-              : 0};"
-          />
-        {/each}
+        {#if browser}
+          {#each previewItems as { y, t }}
+            <img
+              src={svgUrl(y, pickers[y].page)}
+              alt="{y}年{pickers[y].page}ページ目"
+              style="transform: translate({t.tx * scale}px, {t.ty *
+                scale}px) scale({t.sx * scale}); opacity: {previewYear === y
+                ? 1
+                : 0};"
+            />
+          {/each}
+        {/if}
       </div>
     {/if}
   </div>
