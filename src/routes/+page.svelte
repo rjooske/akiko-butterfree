@@ -142,7 +142,10 @@
   }
 
   function handleZoomStep(delta: 1 | -1) {
-    scale = Math.min(4, Math.max(0.1, Math.round((scale + delta * 0.1) * 10) / 10));
+    scale = Math.min(
+      4,
+      Math.max(0.1, Math.round((scale + delta * 0.1) * 10) / 10),
+    );
   }
 
   function enterPreview() {
@@ -370,7 +373,8 @@
             <img
               src={svgUrl(y, pickers[y].page)}
               alt="{y}年{pickers[y].page}ページ目"
-              style="top: {16 * scale}px; left: {16 * scale}px; transform: translate({t.tx * scale}px, {t.ty *
+              style="top: {16 * scale}px; left: {16 *
+                scale}px; transform: translate({t.tx * scale}px, {t.ty *
                 scale}px) scale({t.sx * scale}); opacity: {previewYear === y
                 ? 1
                 : 0};"
