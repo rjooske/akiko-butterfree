@@ -50,9 +50,10 @@
   let scale = $state(initial.scale);
   let pickers = $state(initial.pickers);
   let previewYear = $state(initial.previewYear);
+  let alignEdge = $state(initial.alignEdge);
 
   $effect(() => {
-    storageSave({ mode, year, scale, pickers, previewYear });
+    storageSave({ mode, year, scale, pickers, previewYear, alignEdge });
   });
 
   let picker = $derived(pickers[year]);
@@ -68,12 +69,16 @@
       const ref = pickers[refYear];
       const refC = ref.corners[ref.page];
       const rcw = refC.bottomRight!.x - refC.topLeft!.x;
+      const refH = refC.bottomRight!.y - refC.topLeft!.y;
 
       function compute(p: Picker): AlignTransform | undefined {
         const c = p.corners[p.page];
         if (!c?.topLeft || !c?.bottomRight) return undefined;
         const sx = rcw / (c.bottomRight.x - c.topLeft.x);
-        return { tx: -sx * c.topLeft.x, ty: -sx * c.topLeft.y, sx };
+        const tx = -sx * c.topLeft.x;
+        const ty =
+          alignEdge === "top" ? -sx * c.topLeft.y : refH - sx * c.bottomRight.y;
+        return { tx, ty, sx };
       }
 
       return {
@@ -189,6 +194,12 @@
         break;
       }
     }
+    if (e.key === "g") {
+      alignEdge = "top";
+    }
+    if (e.key === "G") {
+      alignEdge = "bottom";
+    }
   }
 </script>
 
@@ -300,6 +311,24 @@
           拡大
           <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
           {scale.toFixed(1)}
+        </label>
+        <label title="上端揃え (g)">
+          <input
+            type="radio"
+            name="alignEdge"
+            value="top"
+            bind:group={alignEdge}
+          />
+          上端揃え
+        </label>
+        <label title="下端揃え (G)">
+          <input
+            type="radio"
+            name="alignEdge"
+            value="bottom"
+            bind:group={alignEdge}
+          />
+          下端揃え
         </label>
       </div>
 

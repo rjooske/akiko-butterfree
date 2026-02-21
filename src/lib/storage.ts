@@ -93,12 +93,15 @@ function pickerDecode(u: unknown, year: Year): Picker | undefined {
   return { page: o.page, corners, nextClick: o.nextClick };
 }
 
+export type AlignEdge = "top" | "bottom";
+
 export type Storage = {
   mode: "picker" | "preview";
   year: Year;
   scale: number;
   pickers: Record<Year, Picker>;
   previewYear: Year;
+  alignEdge: AlignEdge;
 };
 
 export function storageDefault(): Storage {
@@ -112,6 +115,7 @@ export function storageDefault(): Storage {
       2025: pickerDefault(),
     },
     previewYear: 2023,
+    alignEdge: "top",
   };
 }
 
@@ -133,11 +137,13 @@ export function storageDecode(u: unknown): Storage | undefined {
   if (entries.some(([, p]) => p === undefined)) return undefined;
   const pickers = Object.fromEntries(entries) as Record<Year, Picker>;
   if (!isYear(o.previewYear)) return undefined;
+  const alignEdge: AlignEdge = o.alignEdge === "bottom" ? "bottom" : "top";
   return {
     mode: o.mode,
     year: o.year,
     scale: o.scale,
     pickers,
     previewYear: o.previewYear,
+    alignEdge,
   };
 }
