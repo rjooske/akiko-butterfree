@@ -141,6 +141,10 @@
     pickerSetPage(picker, next);
   }
 
+  function handleZoomStep(delta: 1 | -1) {
+    scale = Math.min(4, Math.max(0.1, Math.round((scale + delta * 0.1) * 10) / 10));
+  }
+
   function enterPreview() {
     mode = "preview";
     if (!pickerCanPreview(pickers[previewYear])) {
@@ -173,6 +177,14 @@
       }
       if (e.key === "l") {
         handleTabStep(1);
+        return;
+      }
+      if (e.key === "+") {
+        handleZoomStep(1);
+        return;
+      }
+      if (e.key === "-") {
+        handleZoomStep(-1);
         return;
       }
       if (mode === "picker") {
@@ -256,6 +268,11 @@
       {@const br = picker.corners[picker.page]?.bottomRight}
 
       <div class="controls">
+        <label>
+          拡大
+          <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+          {scale.toFixed(1)}
+        </label>
         <div class="page-control">
           ページ
           <input
@@ -272,11 +289,6 @@
             ↓
           </button>
         </div>
-        <label>
-          拡大
-          <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
-          {scale.toFixed(1)}
-        </label>
       </div>
 
       <div class="info">
@@ -312,43 +324,44 @@
           <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
           {scale.toFixed(1)}
         </label>
-        <label title="上端揃え (g)">
-          <input
-            type="radio"
-            name="alignEdge"
-            value="top"
-            bind:group={alignEdge}
-          />
-          上端揃え
-        </label>
-        <label title="下端揃え (G)">
-          <input
-            type="radio"
-            name="alignEdge"
-            value="bottom"
-            bind:group={alignEdge}
-          />
-          下端揃え
-        </label>
-      </div>
-
-      <div class="controls">
-        {#each YEARS as y}
-          <label
-            title={pickerCanPreview(pickers[y])
-              ? `${y} (${y % 10})`
-              : undefined}
-          >
+        <div class="controls-group">
+          <label title="上端揃え (g)">
             <input
               type="radio"
-              name="previewYear"
-              value={y}
-              bind:group={previewYear}
-              disabled={!pickerCanPreview(pickers[y])}
+              name="alignEdge"
+              value="top"
+              bind:group={alignEdge}
             />
-            {y}
+            上端揃え
           </label>
-        {/each}
+          <label title="下端揃え (G)">
+            <input
+              type="radio"
+              name="alignEdge"
+              value="bottom"
+              bind:group={alignEdge}
+            />
+            下端揃え
+          </label>
+        </div>
+        <div class="controls-group">
+          {#each YEARS as y}
+            <label
+              title={pickerCanPreview(pickers[y])
+                ? `${y} (${y % 10})`
+                : undefined}
+            >
+              <input
+                type="radio"
+                name="previewYear"
+                value={y}
+                bind:group={previewYear}
+                disabled={!pickerCanPreview(pickers[y])}
+              />
+              {y}
+            </label>
+          {/each}
+        </div>
       </div>
 
       <div class="viewer">
@@ -357,7 +370,7 @@
             <img
               src={svgUrl(y, pickers[y].page)}
               alt="{y}年{pickers[y].page}ページ目"
-              style="transform: translate({t.tx * scale}px, {t.ty *
+              style="top: {16 * scale}px; left: {16 * scale}px; transform: translate({t.tx * scale}px, {t.ty *
                 scale}px) scale({t.sx * scale}); opacity: {previewYear === y
                 ? 1
                 : 0};"
@@ -469,6 +482,13 @@
         cursor: default;
       }
     }
+  }
+
+  .controls-group {
+    display: flex;
+    align-items: center;
+    gap: $sp-md;
+    margin-left: $sp-sm;
   }
 
   .page-control {
