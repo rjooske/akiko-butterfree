@@ -41,6 +41,10 @@
     };
   }
 
+  function pickerCanPreview(p: Picker): boolean {
+    return p.topLeft !== undefined && p.bottomRight !== undefined;
+  }
+
   function pickerDecode(u: unknown, year: Year): Picker | undefined {
     if (typeof u !== "object" || u === null) return undefined;
     const o = u as Record<string, unknown>;
@@ -60,6 +64,10 @@
     )
       return undefined;
     return { page: o.page, topLeft, bottomRight, nextClick: o.nextClick };
+  }
+
+  function svgUrl(year: Year, page: number): string {
+    return `${import.meta.env.BASE_URL}tables/${year}/${String(page).padStart(3, "0")}.svg`;
   }
 
   type AlignTransform = { tx: number; ty: number; sx: number };
@@ -97,17 +105,18 @@
     if (!isYear(o.year)) return undefined;
     if (typeof o.scale !== "number") return undefined;
     if (typeof o.pickers !== "object" || o.pickers === null) return undefined;
-    const p = o.pickers as Record<string, unknown>;
-    const picker2023 = pickerDecode(p["2023"], 2023);
-    const picker2024 = pickerDecode(p["2024"], 2024);
-    const picker2025 = pickerDecode(p["2025"], 2025);
-    if (!picker2023 || !picker2024 || !picker2025) return undefined;
+    const rawPickers = o.pickers as Record<string, unknown>;
+    const entries = YEARS.map(
+      (y) => [y, pickerDecode(rawPickers[String(y)], y)] as const,
+    );
+    if (entries.some(([, p]) => p === undefined)) return undefined;
+    const pickers = Object.fromEntries(entries) as Record<Year, Picker>;
     if (!isYear(o.previewYear)) return undefined;
     return {
       mode: o.mode,
       year: o.year,
       scale: o.scale,
-      pickers: { 2023: picker2023, 2024: picker2024, 2025: picker2025 },
+      pickers,
       previewYear: o.previewYear,
     };
   }
@@ -143,27 +152,12 @@
   });
 
   let picker = $derived(pickers[year]);
-  let svgUrl = $derived(
-    `${import.meta.env.BASE_URL}tables/${year}/${String(picker.page).padStart(3, "0")}.svg`,
-  );
-
-  let canPreview = $derived({
-    2023:
-      pickers[2023].topLeft !== undefined &&
-      pickers[2023].bottomRight !== undefined,
-    2024:
-      pickers[2024].topLeft !== undefined &&
-      pickers[2024].bottomRight !== undefined,
-    2025:
-      pickers[2025].topLeft !== undefined &&
-      pickers[2025].bottomRight !== undefined,
-  });
 
   // For each year, compute a CSS transform that brings topLeft to (0,0) and
   // normalises content width to match the reference year. Bake scale in later.
   let alignTransforms = $derived.by(
     (): Record<Year, AlignTransform | undefined> => {
-      const refYear = YEARS.find((y) => canPreview[y]);
+      const refYear = YEARS.find((y) => pickerCanPreview(pickers[y]));
       if (!refYear)
         return { 2023: undefined, 2024: undefined, 2025: undefined };
 
@@ -196,6 +190,12 @@
     year = y;
   }
 
+  function pickerResetCorners(p: Picker) {
+    p.topLeft = undefined;
+    p.bottomRight = undefined;
+    p.nextClick = "top-left";
+  }
+
   function handleClick(e: MouseEvent) {
     const x = e.offsetX / scale;
     const y = e.offsetY / scale;
@@ -210,17 +210,16 @@
 
   function handlePageInput(e: Event & { currentTarget: HTMLInputElement }) {
     const value = e.currentTarget.valueAsNumber;
-    if (!Number.isInteger(value) || value < 1 || value > PAGE_COUNTS[year]) return;
+    if (!Number.isInteger(value) || value < 1 || value > PAGE_COUNTS[year])
+      return;
     picker.page = value;
-    picker.topLeft = undefined;
-    picker.bottomRight = undefined;
-    picker.nextClick = "top-left";
+    pickerResetCorners(picker);
   }
 
   function enterPreview() {
     mode = "preview";
-    if (!canPreview[previewYear]) {
-      const first = YEARS.find((y) => canPreview[y]);
+    if (!pickerCanPreview(pickers[previewYear])) {
+      const first = YEARS.find((y) => pickerCanPreview(pickers[y]));
       if (first !== undefined) previewYear = first;
     }
   }
@@ -235,7 +234,7 @@
     )
       return;
     for (const y of YEARS) {
-      if (e.key === String(y % 10) && canPreview[y]) {
+      if (e.key === String(y % 10) && pickerCanPreview(pickers[y])) {
         previewYear = y;
         break;
       }
@@ -256,6 +255,12 @@
   <button onclick={() => selectYear(2025)}>2025</button>
   <button onclick={enterPreview}>プレビュー</button>
 </div>
+
+{#snippet cornerMarker(corner: Corner, color: string)}
+  <div
+    style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; background: {color}; border-radius: 50%; transform: translate(calc({corner.x * scale}px - 5px), calc({corner.y * scale}px - 5px)); pointer-events: none;"
+  ></div>
+{/snippet}
 
 {#if mode === "picker"}
   <div>
@@ -294,24 +299,16 @@
 
   <div style="width: 100%; height: 80vh; overflow: auto; position: relative;">
     <img
-      src={svgUrl}
+      src={svgUrl(year, picker.page)}
       alt="{picker.page}ページ目"
       style="width: {scale * 100}%; display: block; cursor: crosshair;"
       onclick={handleClick}
     />
     {#if picker.topLeft}
-      <div
-        style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; background: rgba(255, 0, 0, 0.5); border-radius: 50%; transform: translate(calc({picker
-          .topLeft.x * scale}px - 5px), calc({picker.topLeft.y *
-          scale}px - 5px)); pointer-events: none;"
-      ></div>
+      {@render cornerMarker(picker.topLeft, "rgba(255, 0, 0, 0.5)")}
     {/if}
     {#if picker.bottomRight}
-      <div
-        style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; background: rgba(0, 200, 0, 0.5); border-radius: 50%; transform: translate(calc({picker
-          .bottomRight.x * scale}px - 5px), calc({picker.bottomRight.y *
-          scale}px - 5px)); pointer-events: none;"
-      ></div>
+      {@render cornerMarker(picker.bottomRight, "rgba(0, 200, 0, 0.5)")}
     {/if}
   </div>
 {:else}
@@ -331,7 +328,7 @@
           name="previewYear"
           value={y}
           bind:group={previewYear}
-          disabled={!canPreview[y]}
+          disabled={!pickerCanPreview(pickers[y])}
         />
         {y}
       </label>
@@ -341,7 +338,7 @@
   <div style="width: 100%; height: 80vh; overflow: auto; position: relative;">
     {#each previewItems as { y, t }}
       <img
-        src={`${import.meta.env.BASE_URL}tables/${y}/${String(pickers[y].page).padStart(3, "0")}.svg`}
+        src={svgUrl(y, pickers[y].page)}
         alt="{y}年{pickers[y].page}ページ目"
         style="position: absolute; top: 0; left: 0; width: 100%; transform-origin: 0 0; transform: translate({t.tx *
           scale}px, {t.ty * scale}px) scale({t.sx *
@@ -350,4 +347,3 @@
     {/each}
   </div>
 {/if}
-
