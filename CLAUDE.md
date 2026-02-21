@@ -41,8 +41,10 @@ SVG `<img>` elements are wrapped in `{#if browser}` to prevent hydration mismatc
 | Key             | Mode    | Action                                              |
 | --------------- | ------- | --------------------------------------------------- |
 | `h` / `l`       | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
+| `+` / `-`       | both    | zoom in / out (step 0.1, clamped to 0.1–4)          |
 | `j` / `k`       | picker  | next / previous page                                |
 | `3` / `4` / `5` | preview | switch to that year (only if corners are set)       |
+| `g` / `G`       | preview | align top / bottom edge                             |
 
 ### Styling
 
@@ -53,12 +55,13 @@ Shared SCSS variables live in `src/routes/variables.scss` (imported as `@use "./
 - **Fonts**: `$font-sans`, `$font-mono`; size: `$font-h1`
 - **Misc**: `$marker-size`
 
-Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.info` (muted monospace status row), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons).
+Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.controls-group` (sub-group within a controls row, adds `$sp-sm` left margin for visual separation), `.info` (muted monospace status row), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons).
 
 ## Code conventions
 
 - **Script organisation**: each type is immediately followed by its related pure functions; pure functions come before impure ones; event handlers (which mutate `$state`) come last.
 - **Decode functions** (`cornerDecode`, `pickerDecode`, `storageDecode`) return `T | undefined` — any unexpected shape yields `undefined`.
 - **`NextClick` values** (`"top-left"`, `"bottom-right"`) are internal identifiers; display is handled by `nextClickToJa()`.
+- **`AlignEdge` values** (`"top"`, `"bottom"`) control which edge is aligned in preview mode; persisted in `Storage` and decoded leniently (unknown values fall back to `"top"`).
 - All UI-visible text is in Japanese.
 - `src/lib/util.ts` holds generic utilities (`assert`, `sortByKeyCached`).
