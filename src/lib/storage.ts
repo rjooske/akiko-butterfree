@@ -75,11 +75,6 @@ function pickerDefault(): Picker {
   };
 }
 
-export function pickerCanPreview(p: Picker): boolean {
-  const c = p.corners[p.page];
-  return c?.topLeft !== undefined && c?.bottomRight !== undefined;
-}
-
 function pickerDecode(u: unknown, year: Year): Picker | undefined {
   if (typeof u !== "object" || u === null) return undefined;
   const o = u as Record<string, unknown>;
@@ -95,12 +90,35 @@ function pickerDecode(u: unknown, year: Year): Picker | undefined {
 
 export type AlignEdge = "top" | "bottom";
 
+export type PreviewEntry = { year: Year; page: number };
+
+function previewEntryDecode(u: unknown): PreviewEntry | undefined {
+  if (typeof u !== "object" || u === null) return undefined;
+  const o = u as Record<string, unknown>;
+  if (!isYear(o.year)) return undefined;
+  if (typeof o.page !== "number" || !Number.isInteger(o.page)) return undefined;
+  if (o.page < 1 || o.page > PAGE_COUNTS[o.year]) return undefined;
+  return { year: o.year, page: o.page };
+}
+
+function previewListDecode(u: unknown): PreviewEntry[] | undefined {
+  if (!Array.isArray(u)) return undefined;
+  const result: PreviewEntry[] = [];
+  for (const item of u) {
+    const entry = previewEntryDecode(item);
+    if (entry === undefined) return undefined;
+    result.push(entry);
+  }
+  return result;
+}
+
 export type Storage = {
   mode: "picker" | "preview";
   year: Year;
   scale: number;
   pickers: Record<Year, Picker>;
-  previewYear: Year;
+  previewList: PreviewEntry[];
+  previewIndex: number;
   alignEdge: AlignEdge;
 };
 
@@ -114,7 +132,8 @@ export function storageDefault(): Storage {
       2024: pickerDefault(),
       2025: pickerDefault(),
     },
-    previewYear: 2023,
+    previewList: [],
+    previewIndex: 0,
     alignEdge: "top",
   };
 }
@@ -136,14 +155,27 @@ export function storageDecode(u: unknown): Storage | undefined {
   );
   if (entries.some(([, p]) => p === undefined)) return undefined;
   const pickers = Object.fromEntries(entries) as Record<Year, Picker>;
-  if (!isYear(o.previewYear)) return undefined;
+  const previewList = previewListDecode(o.previewList);
+  if (previewList === undefined) return undefined;
+  if (
+    typeof o.previewIndex !== "number" ||
+    !Number.isInteger(o.previewIndex) ||
+    o.previewIndex < 0
+  )
+    return undefined;
+  if (previewList.length === 0) {
+    if (o.previewIndex !== 0) return undefined;
+  } else {
+    if (o.previewIndex > previewList.length - 1) return undefined;
+  }
   const alignEdge: AlignEdge = o.alignEdge === "bottom" ? "bottom" : "top";
   return {
     mode: o.mode,
     year: o.year,
     scale: o.scale,
     pickers,
-    previewYear: o.previewYear,
+    previewList,
+    previewIndex: o.previewIndex as number,
     alignEdge,
   };
 }

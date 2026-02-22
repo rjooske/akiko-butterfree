@@ -28,7 +28,7 @@ Single-page SvelteKit app statically prerendered (`src/routes/+layout.ts` export
 The app overlays scanned schedule pages from multiple years (2023/2024/2025) to compare them visually. Two modes:
 
 - **picker mode** — the user browses SVG pages for a given year and clicks two corners (top-left, bottom-right) to define a bounding rectangle.
-- **preview mode** — all years with defined corners are rendered overlaid using CSS transforms derived from the corner coordinates, with one year visible at a time.
+- **preview mode** — a user-managed list of `(year, page)` entries are rendered overlaid using CSS transforms derived from the corner coordinates, with one entry visible at a time.
 
 SVG assets live in `static/tables/{year}/{zero-padded-page}.svg` (e.g. `static/tables/2023/042.svg`). Page counts per year are hardcoded in `PAGE_COUNTS`.
 
@@ -43,7 +43,9 @@ SVG `<img>` elements are wrapped in `{#if browser}` to prevent hydration mismatc
 | `h` / `l`       | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
 | `+` / `-`       | both    | zoom in / out (step 0.1, clamped to 0.1–4)          |
 | `j` / `k`       | picker  | next / previous page                                |
-| `3` / `4` / `5` | preview | switch to that year (only if corners are set)       |
+| `j` / `k`       | preview | cycle next / previous preview list entry            |
+| `J` / `K`       | preview | move current entry down / up in list                |
+| `d`             | preview | remove current entry from list                      |
 | `g` / `G`       | preview | align top / bottom edge                             |
 
 ### Styling

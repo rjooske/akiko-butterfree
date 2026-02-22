@@ -8,7 +8,6 @@
     type Storage,
     YEARS,
     type Year,
-    pickerCanPreview,
     storageDecode,
     storageDefault,
     storageEncode,
@@ -49,51 +48,55 @@
   let year = $state(initial.year);
   let scale = $state(initial.scale);
   let pickers = $state(initial.pickers);
-  let previewYear = $state(initial.previewYear);
+  let previewList = $state(initial.previewList);
+  let previewIndex = $state(initial.previewIndex);
   let alignEdge = $state(initial.alignEdge);
+  // transient, not persisted:
+  let addYear = $state<Year>(2023);
+  let addPage = $state(1);
 
   $effect(() => {
-    storageSave({ mode, year, scale, pickers, previewYear, alignEdge });
+    storageSave({
+      mode,
+      year,
+      scale,
+      pickers,
+      previewList,
+      previewIndex,
+      alignEdge,
+    });
   });
 
   let picker = $derived(pickers[year]);
 
-  // For each year, compute a CSS transform that brings topLeft to (0,0) and
-  // normalises content width to match the reference year. Bake scale in later.
-  let alignTransforms = $derived.by(
-    (): Record<Year, AlignTransform | undefined> => {
-      const refYear = YEARS.find((y) => pickerCanPreview(pickers[y]));
-      if (!refYear)
-        return { 2023: undefined, 2024: undefined, 2025: undefined };
-
-      const ref = pickers[refYear];
-      const refC = ref.corners[ref.page];
-      const rcw = refC.bottomRight!.x - refC.topLeft!.x;
-      const refH = refC.bottomRight!.y - refC.topLeft!.y;
-
-      function compute(p: Picker): AlignTransform | undefined {
-        const c = p.corners[p.page];
-        if (!c?.topLeft || !c?.bottomRight) return undefined;
-        const sx = rcw / (c.bottomRight.x - c.topLeft.x);
-        const tx = -sx * c.topLeft.x;
-        const ty =
-          alignEdge === "top" ? -sx * c.topLeft.y : refH - sx * c.bottomRight.y;
-        return { tx, ty, sx };
-      }
-
-      return {
-        2023: compute(pickers[2023]),
-        2024: compute(pickers[2024]),
-        2025: compute(pickers[2025]),
-      };
-    },
-  );
+  // For each previewList entry, compute a CSS transform that brings topLeft to
+  // (0,0) and normalises content width to match the reference entry.
+  let alignTransforms = $derived.by((): (AlignTransform | undefined)[] => {
+    const refEntry = previewList.find((e) => {
+      const c = pickers[e.year].corners[e.page];
+      return c?.topLeft !== undefined && c?.bottomRight !== undefined;
+    });
+    if (!refEntry) return previewList.map(() => undefined);
+    const refC = pickers[refEntry.year].corners[refEntry.page];
+    const rcw = refC!.bottomRight!.x - refC!.topLeft!.x;
+    const refH = refC!.bottomRight!.y - refC!.topLeft!.y;
+    return previewList.map((e) => {
+      const c = pickers[e.year].corners[e.page];
+      if (!c?.topLeft || !c?.bottomRight) return undefined;
+      const sx = rcw / (c.bottomRight.x - c.topLeft.x);
+      const tx = -sx * c.topLeft.x;
+      const ty =
+        alignEdge === "top" ? -sx * c.topLeft.y : refH - sx * c.bottomRight.y;
+      return { tx, ty, sx };
+    });
+  });
 
   let previewItems = $derived(
-    YEARS.flatMap((y) => {
-      const t = alignTransforms[y];
-      return t ? [{ y, t }] : [];
-    }),
+    previewList.map((entry, index) => ({
+      entry,
+      transform: alignTransforms[index],
+      index,
+    })),
   );
 
   function selectYear(y: Year) {
@@ -150,10 +153,39 @@
 
   function enterPreview() {
     mode = "preview";
-    if (!pickerCanPreview(pickers[previewYear])) {
-      const first = YEARS.find((y) => pickerCanPreview(pickers[y]));
-      if (first !== undefined) previewYear = first;
-    }
+  }
+
+  function handleAddEntry() {
+    const c = pickers[addYear].corners[addPage];
+    if (!c?.topLeft || !c?.bottomRight) return;
+    if (previewList.some((e) => e.year === addYear && e.page === addPage))
+      return;
+    previewList = [...previewList, { year: addYear, page: addPage }];
+    previewIndex = previewList.length - 1;
+  }
+
+  function handleRemoveEntry(i: number) {
+    previewList = previewList.filter((_, idx) => idx !== i);
+    previewIndex =
+      previewList.length === 0
+        ? 0
+        : Math.min(previewIndex, previewList.length - 1);
+  }
+
+  function handleMoveEntry(i: number, delta: 1 | -1) {
+    const j = i + delta;
+    if (j < 0 || j >= previewList.length) return;
+    const newList = [...previewList];
+    [newList[i], newList[j]] = [newList[j], newList[i]];
+    previewList = newList;
+    if (previewIndex === i) previewIndex = j;
+    else if (previewIndex === j) previewIndex = i;
+  }
+
+  function handlePreviewCycle(delta: 1 | -1) {
+    const n = previewList.length;
+    if (n === 0) return;
+    previewIndex = (previewIndex + delta + n) % n;
   }
 
   function handleTabStep(delta: 1 | -1) {
@@ -203,11 +235,20 @@
     }
     if (mode !== "preview") return;
     if (inTextInput) return;
-    for (const y of YEARS) {
-      if (e.key === String(y % 10) && pickerCanPreview(pickers[y])) {
-        previewYear = y;
-        break;
-      }
+    if (e.key === "j") {
+      handlePreviewCycle(1);
+    }
+    if (e.key === "k") {
+      handlePreviewCycle(-1);
+    }
+    if (e.key === "J") {
+      handleMoveEntry(previewIndex, 1);
+    }
+    if (e.key === "K") {
+      handleMoveEntry(previewIndex, -1);
+    }
+    if (e.key === "d") {
+      handleRemoveEntry(previewIndex);
     }
     if (e.key === "g") {
       alignEdge = "top";
@@ -347,40 +388,88 @@
             下端揃え
           </label>
         </div>
-        <div class="controls-group">
-          {#each YEARS as y}
-            <label
-              title={pickerCanPreview(pickers[y])
-                ? `${y} (${y % 10})`
-                : undefined}
-            >
-              <input
-                type="radio"
-                name="previewYear"
-                value={y}
-                bind:group={previewYear}
-                disabled={!pickerCanPreview(pickers[y])}
-              />
-              {y}
-            </label>
-          {/each}
-        </div>
       </div>
 
-      <div class="viewer">
-        {#if browser}
-          {#each previewItems as { y, t }}
-            <img
-              src={svgUrl(y, pickers[y].page)}
-              alt="{y}年{pickers[y].page}ページ目"
-              style="top: {16 * scale}px; left: {16 *
-                scale}px; transform: translate({t.tx * scale}px, {t.ty *
-                scale}px) scale({t.sx * scale}); opacity: {previewYear === y
-                ? 1
-                : 0};"
-            />
+      <div class="preview-body">
+        <aside class="preview-sidebar">
+          {#each previewItems as { entry, index }}
+            <div
+              class="preview-chip"
+              aria-current={index === previewIndex ? "true" : undefined}
+              onclick={() => (previewIndex = index)}
+            >
+              <span>{entry.year} p.{entry.page}</span>
+              <button
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleMoveEntry(index, -1);
+                }}
+                disabled={index === 0}
+                title="上へ (K)"
+              >
+                ↑
+              </button>
+              <button
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleMoveEntry(index, 1);
+                }}
+                disabled={index === previewList.length - 1}
+                title="下へ (J)"
+              >
+                ↓
+              </button>
+              <button
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveEntry(index);
+                }}
+                title="削除 (d)"
+              >
+                ×
+              </button>
+            </div>
           {/each}
-        {/if}
+          <div class="preview-add">
+            <select bind:value={addYear}>
+              {#each YEARS as y}<option value={y}>{y}</option>{/each}
+            </select>
+            <input
+              type="number"
+              min="1"
+              max={PAGE_COUNTS[addYear]}
+              bind:value={addPage}
+            />
+            <button
+              onclick={handleAddEntry}
+              disabled={!pickers[addYear].corners[addPage]?.topLeft ||
+                !pickers[addYear].corners[addPage]?.bottomRight ||
+                previewList.some(
+                  (e) => e.year === addYear && e.page === addPage,
+                )}
+            >
+              追加
+            </button>
+          </div>
+        </aside>
+
+        <div class="viewer">
+          {#if browser}
+            {#each previewItems as { entry, transform, index }}
+              <img
+                src={svgUrl(entry.year, entry.page)}
+                alt="{entry.year}年{entry.page}ページ目"
+                style="top: {16 * scale}px; left: {16 * scale}px;
+                  transform: translate({(transform?.tx ?? 0) * scale}px,
+                    {(transform?.ty ?? 0) * scale}px) scale({(transform?.sx ??
+                  1) * scale});
+                  opacity: {index === previewIndex && transform !== undefined
+                  ? 1
+                  : 0};"
+              />
+            {/each}
+          {/if}
+        </div>
       </div>
     {/if}
   </div>
@@ -565,5 +654,108 @@
     width: 100%;
     transform-origin: 0 0;
     pointer-events: none;
+  }
+
+  .preview-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .preview-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: $sp-xs;
+    padding: $sp-sm;
+    border-right: 1px solid $color-border;
+    background: $color-surface;
+    overflow-y: auto;
+    min-width: 130px;
+  }
+
+  .preview-chip {
+    display: flex;
+    align-items: center;
+    gap: $sp-xs;
+    padding: 2px $sp-xs;
+    border: 1px solid $color-border;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: $font-mono;
+    cursor: pointer;
+
+    > span {
+      flex: 1;
+    }
+
+    &[aria-current="true"] {
+      border-color: $color-accent;
+      background: $color-accent;
+      color: $color-surface;
+    }
+
+    button {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      color: inherit;
+      &:hover:not(:disabled) {
+        color: $color-accent;
+      }
+      &:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+    }
+  }
+
+  .preview-add {
+    display: flex;
+    flex-direction: column;
+    gap: $sp-xs;
+    margin-top: $sp-sm;
+
+    select,
+    input[type="number"] {
+      border: 1px solid $color-border;
+      border-radius: 4px;
+      padding: 2px $sp-xs;
+      background: $color-surface;
+      color: $color-text;
+      font-family: inherit;
+      font-size: inherit;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    input[type="number"] {
+      appearance: textfield;
+      -moz-appearance: textfield;
+      &::-webkit-inner-spin-button,
+      &::-webkit-outer-spin-button {
+        appearance: none;
+      }
+    }
+
+    button {
+      border: 1px solid $color-border;
+      border-radius: 4px;
+      background: transparent;
+      color: $color-text;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: inherit;
+      padding: 2px 8px;
+      &:hover:not(:disabled) {
+        border-color: $color-accent;
+        color: $color-accent;
+      }
+      &:disabled {
+        color: $color-text-muted;
+        cursor: default;
+      }
+    }
   }
 </style>
