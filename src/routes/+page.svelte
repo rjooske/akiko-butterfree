@@ -54,6 +54,7 @@
   // transient, not persisted:
   let addYear = $state<Year>(2023);
   let addPage = $state(1);
+  let prevPreviewIndex = $state<number | undefined>(undefined);
 
   $effect(() => {
     storageSave({
@@ -102,6 +103,12 @@
   function selectYear(y: Year) {
     mode = "picker";
     year = y;
+  }
+
+  function openInPicker(y: Year, page: number) {
+    year = y;
+    pickerSetPage(pickers[y], page);
+    mode = "picker";
   }
 
   function pickerSetPage(p: Picker, newPage: number) {
@@ -155,6 +162,20 @@
     mode = "preview";
   }
 
+  function handleClearPage() {
+    delete picker.corners[picker.page];
+    picker.nextClick = "top-left";
+  }
+
+  function handleAddCurrentPage() {
+    const c = picker.corners[picker.page];
+    if (!c?.topLeft || !c?.bottomRight) return;
+    if (previewList.some((e) => e.year === year && e.page === picker.page))
+      return;
+    previewList = [...previewList, { year, page: picker.page }];
+    previewIndex = previewList.length - 1;
+  }
+
   function handleAddEntry() {
     const c = pickers[addYear].corners[addPage];
     if (!c?.topLeft || !c?.bottomRight) return;
@@ -182,10 +203,22 @@
     else if (previewIndex === j) previewIndex = i;
   }
 
+  function navigatePreview(newIndex: number) {
+    prevPreviewIndex = previewIndex;
+    previewIndex = newIndex;
+  }
+
   function handlePreviewCycle(delta: 1 | -1) {
     const n = previewList.length;
     if (n === 0) return;
-    previewIndex = (previewIndex + delta + n) % n;
+    navigatePreview((previewIndex + delta + n) % n);
+  }
+
+  function handlePrevPreviewEntry() {
+    if (prevPreviewIndex === undefined || prevPreviewIndex >= previewList.length) return;
+    const target = prevPreviewIndex;
+    prevPreviewIndex = previewIndex;
+    previewIndex = target;
   }
 
   function handleTabStep(delta: 1 | -1) {
@@ -231,6 +264,14 @@
           handlePageStep(-1);
           return;
         }
+        if (e.key === "a") {
+          handleAddCurrentPage();
+          return;
+        }
+        if (e.key === "d") {
+          handleClearPage();
+          return;
+        }
       }
     }
     if (mode !== "preview") return;
@@ -249,6 +290,11 @@
     }
     if (e.key === "d") {
       handleRemoveEntry(previewIndex);
+    }
+    if (e.key === "~") { handlePrevPreviewEntry(); }
+    if (e.key === "o" && previewList.length > 0) {
+      const e2 = previewList[previewIndex];
+      openInPicker(e2.year, e2.page);
     }
     if (e.key === "g") {
       alignEdge = "top";
@@ -333,6 +379,28 @@
             ↓
           </button>
         </div>
+        <div class="controls-group">
+          <button
+            class="add-to-preview"
+            onclick={handleClearPage}
+            disabled={!tl && !br}
+            title="クリア (d)"
+          >
+            クリア
+          </button>
+          <button
+            class="add-to-preview"
+            onclick={handleAddCurrentPage}
+            disabled={!tl ||
+              !br ||
+              previewList.some(
+                (e) => e.year === year && e.page === picker.page,
+              )}
+            title="プレビューに使う (a)"
+          >
+            プレビューに使う
+          </button>
+        </div>
       </div>
 
       <div class="info">
@@ -388,6 +456,16 @@
             下端揃え
           </label>
         </div>
+        <div class="controls-group">
+          <button
+            class="add-to-preview"
+            onclick={handlePrevPreviewEntry}
+            disabled={prevPreviewIndex === undefined || prevPreviewIndex >= previewList.length}
+            title="1つ前のページ (~)"
+          >
+            1つ前のページ
+          </button>
+        </div>
       </div>
 
       <div class="preview-body">
@@ -396,9 +474,18 @@
             <div
               class="preview-chip"
               aria-current={index === previewIndex ? "true" : undefined}
-              onclick={() => (previewIndex = index)}
+              onclick={() => navigatePreview(index)}
             >
               <span>{entry.year} p.{entry.page}</span>
+              <button
+                onclick={(e) => {
+                  e.stopPropagation();
+                  openInPicker(entry.year, entry.page);
+                }}
+                title="ピッカーで開く (o)"
+              >
+                ✎
+              </button>
               <button
                 onclick={(e) => {
                   e.stopPropagation();
@@ -582,6 +669,25 @@
     align-items: center;
     gap: $sp-md;
     margin-left: $sp-sm;
+  }
+
+  .add-to-preview {
+    border: 1px solid $color-border;
+    border-radius: 4px;
+    background: transparent;
+    color: $color-text;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    padding: 2px 8px;
+    &:hover:not(:disabled) {
+      border-color: $color-accent;
+      color: $color-accent;
+    }
+    &:disabled {
+      color: $color-text-muted;
+      cursor: default;
+    }
   }
 
   .page-control {
