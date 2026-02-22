@@ -60,7 +60,9 @@ Shared SCSS variables live in `src/routes/variables.scss` (imported as `@use "./
 - **Fonts**: `$font-sans`, `$font-mono`; size: `$font-h1`
 - **Misc**: `$marker-size`
 
-Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.controls-group` (sub-group within a controls row, adds `$sp-sm` left margin for visual separation), `.info` (muted monospace status row), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons).
+`<main>` is the CSS Grid container; layout is defined with `grid-template-areas` per mode. Picker areas: `header / controls / info / viewer` (single column). Preview areas: `header` and `controls` span both columns, last row splits into `sidebar | viewer`.
+
+Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.controls-group` (sub-group within a controls row, adds `$sp-sm` left margin for visual separation), `.info` (muted monospace status row, picker only), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons), `.btn` (generic styled action button in the toolbar), `.sidebar` (preview entry list, grid area `sidebar`), `.chip` (one entry row in the sidebar), `.add-form` (form to add an entry to the sidebar).
 
 ## Code conventions
 
@@ -68,5 +70,6 @@ Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface backgr
 - **Decode functions** (`cornerDecode`, `pickerDecode`, `storageDecode`) return `T | undefined` — any unexpected shape yields `undefined`.
 - **`NextClick` values** (`"top-left"`, `"bottom-right"`) are internal identifiers; display is handled by `nextClickToJa()`.
 - **`AlignEdge` values** (`"top"`, `"bottom"`) control which edge is aligned in preview mode; persisted in `Storage` and decoded leniently (unknown values fall back to `"top"`).
+- **Keyboard actions**: `type Action` (discriminated union on `kind`) and pure function `keyToAction(key, mode)` map keys to actions; `handleKeydown` dispatches via `switch (action.kind)` with `unreachable(action)` in the default case.
 - All UI-visible text is in Japanese.
-- `src/lib/util.ts` holds generic utilities (`assert`, `sortByKeyCached`).
+- `src/lib/util.ts` holds generic utilities (`assert`, `sortByKeyCached`, `unreachable`).

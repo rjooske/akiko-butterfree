@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import {
+    type AlignEdge,
     type Corner,
     type NextClick,
     PAGE_COUNTS,
@@ -12,6 +13,7 @@
     storageDefault,
     storageEncode,
   } from "$lib/storage";
+  import { unreachable } from "$lib/util";
 
   const STORAGE_KEY = "akiko-butterfree";
 
@@ -215,7 +217,11 @@
   }
 
   function handlePrevPreviewEntry() {
-    if (prevPreviewIndex === undefined || prevPreviewIndex >= previewList.length) return;
+    if (
+      prevPreviewIndex === undefined ||
+      prevPreviewIndex >= previewList.length
+    )
+      return;
     const target = prevPreviewIndex;
     prevPreviewIndex = previewIndex;
     previewIndex = target;
@@ -232,75 +238,95 @@
     }
   }
 
+  type Action =
+    | { kind: "tab-step"; delta: -1 | 1 }
+    | { kind: "zoom-step"; delta: -1 | 1 }
+    | { kind: "page-step"; delta: -1 | 1 }
+    | { kind: "add-page" }
+    | { kind: "clear-page" }
+    | { kind: "preview-cycle"; delta: -1 | 1 }
+    | { kind: "move-entry"; delta: -1 | 1 }
+    | { kind: "remove-entry" }
+    | { kind: "prev-entry" }
+    | { kind: "open-in-picker" }
+    | { kind: "set-align"; edge: AlignEdge };
+
+  function keyToAction(
+    key: string,
+    mode: "picker" | "preview",
+  ): Action | undefined {
+    if (key === "h") return { kind: "tab-step", delta: -1 };
+    if (key === "l") return { kind: "tab-step", delta: 1 };
+    if (key === "+") return { kind: "zoom-step", delta: 1 };
+    if (key === "-") return { kind: "zoom-step", delta: -1 };
+    if (mode === "picker") {
+      if (key === "j") return { kind: "page-step", delta: 1 };
+      if (key === "k") return { kind: "page-step", delta: -1 };
+      if (key === "a") return { kind: "add-page" };
+      if (key === "d") return { kind: "clear-page" };
+    }
+    if (mode === "preview") {
+      if (key === "j") return { kind: "preview-cycle", delta: 1 };
+      if (key === "k") return { kind: "preview-cycle", delta: -1 };
+      if (key === "J") return { kind: "move-entry", delta: 1 };
+      if (key === "K") return { kind: "move-entry", delta: -1 };
+      if (key === "d") return { kind: "remove-entry" };
+      if (key === "~") return { kind: "prev-entry" };
+      if (key === "o") return { kind: "open-in-picker" };
+      if (key === "g") return { kind: "set-align", edge: "top" };
+      if (key === "G") return { kind: "set-align", edge: "bottom" };
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     const active = document.activeElement;
     const inTextInput =
       active instanceof HTMLInputElement &&
       active.type !== "radio" &&
       active.type !== "range";
-    if (!inTextInput) {
-      if (e.key === "h") {
-        handleTabStep(-1);
-        return;
-      }
-      if (e.key === "l") {
-        handleTabStep(1);
-        return;
-      }
-      if (e.key === "+") {
-        handleZoomStep(1);
-        return;
-      }
-      if (e.key === "-") {
-        handleZoomStep(-1);
-        return;
-      }
-      if (mode === "picker") {
-        if (e.key === "j") {
-          handlePageStep(1);
-          return;
-        }
-        if (e.key === "k") {
-          handlePageStep(-1);
-          return;
-        }
-        if (e.key === "a") {
-          handleAddCurrentPage();
-          return;
-        }
-        if (e.key === "d") {
-          handleClearPage();
-          return;
-        }
-      }
-    }
-    if (mode !== "preview") return;
     if (inTextInput) return;
-    if (e.key === "j") {
-      handlePreviewCycle(1);
-    }
-    if (e.key === "k") {
-      handlePreviewCycle(-1);
-    }
-    if (e.key === "J") {
-      handleMoveEntry(previewIndex, 1);
-    }
-    if (e.key === "K") {
-      handleMoveEntry(previewIndex, -1);
-    }
-    if (e.key === "d") {
-      handleRemoveEntry(previewIndex);
-    }
-    if (e.key === "~") { handlePrevPreviewEntry(); }
-    if (e.key === "o" && previewList.length > 0) {
-      const e2 = previewList[previewIndex];
-      openInPicker(e2.year, e2.page);
-    }
-    if (e.key === "g") {
-      alignEdge = "top";
-    }
-    if (e.key === "G") {
-      alignEdge = "bottom";
+    const action = keyToAction(e.key, mode);
+    if (!action) return;
+    switch (action.kind) {
+      case "tab-step":
+        handleTabStep(action.delta);
+        break;
+      case "zoom-step":
+        handleZoomStep(action.delta);
+        break;
+      case "page-step":
+        handlePageStep(action.delta);
+        break;
+      case "add-page":
+        handleAddCurrentPage();
+        break;
+      case "clear-page":
+        handleClearPage();
+        break;
+      case "preview-cycle":
+        handlePreviewCycle(action.delta);
+        break;
+      case "move-entry":
+        handleMoveEntry(previewIndex, action.delta);
+        break;
+      case "remove-entry":
+        handleRemoveEntry(previewIndex);
+        break;
+      case "prev-entry":
+        handlePrevPreviewEntry();
+        break;
+      case "open-in-picker":
+        if (previewList.length > 0)
+          openInPicker(
+            previewList[previewIndex].year,
+            previewList[previewIndex].page,
+          );
+        break;
+      case "set-align":
+        alignEdge = action.edge;
+        break;
+      default:
+        unreachable(action);
     }
   }
 </script>
@@ -352,214 +378,207 @@
     </nav>
   </header>
 
-  <div>
-    {#if mode === "picker"}
-      {@const tl = picker.corners[picker.page]?.topLeft}
-      {@const br = picker.corners[picker.page]?.bottomRight}
+  {#if mode === "picker"}
+    {@const tl = picker.corners[picker.page]?.topLeft}
+    {@const br = picker.corners[picker.page]?.bottomRight}
 
-      <div class="controls">
-        <label>
-          拡大
-          <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
-          {scale.toFixed(1)}
-        </label>
-        <div class="page-control">
-          ページ
+    <div class="controls">
+      <label>
+        拡大
+        <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+        {scale.toFixed(1)}
+      </label>
+      <div class="page-control">
+        ページ
+        <input
+          type="number"
+          min="1"
+          max={PAGE_COUNTS[year]}
+          value={picker.page}
+          oninput={handlePageInput}
+        />
+        <button onclick={() => handlePageStep(-1)} title="前のページ (k)">
+          ↑
+        </button>
+        <button onclick={() => handlePageStep(1)} title="次のページ (j)">
+          ↓
+        </button>
+      </div>
+      <div class="controls-group">
+        <button
+          class="btn"
+          onclick={handleClearPage}
+          disabled={!tl && !br}
+          title="クリア (d)"
+        >
+          クリア
+        </button>
+        <button
+          class="btn"
+          onclick={handleAddCurrentPage}
+          disabled={!tl ||
+            !br ||
+            previewList.some((e) => e.year === year && e.page === picker.page)}
+          title="プレビューに使う (a)"
+        >
+          プレビューに使う
+        </button>
+      </div>
+    </div>
+
+    <div class="info">
+      <span>次のクリック: {nextClickToJa(picker.nextClick)}</span>
+      <span>
+        左上: {tl ? `(${tl.x.toFixed(1)}, ${tl.y.toFixed(1)})` : "—"}
+      </span>
+      <span>
+        右下: {br ? `(${br.x.toFixed(1)}, ${br.y.toFixed(1)})` : "—"}
+      </span>
+    </div>
+
+    <div class="viewer">
+      {#if browser}
+        <img
+          src={svgUrl(year, picker.page)}
+          alt="{picker.page}ページ目"
+          style="width: {scale * 100}%;"
+          onclick={handleClick}
+        />
+      {/if}
+      {#if tl}
+        {@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}
+      {/if}
+      {#if br}
+        {@render cornerMarker(br, "rgba(0, 200, 0, 0.5)")}
+      {/if}
+    </div>
+  {:else}
+    <div class="controls">
+      <label>
+        拡大
+        <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+        {scale.toFixed(1)}
+      </label>
+      <div class="controls-group">
+        <label title="上端揃え (g)">
           <input
-            type="number"
-            min="1"
-            max={PAGE_COUNTS[year]}
-            value={picker.page}
-            oninput={handlePageInput}
+            type="radio"
+            name="alignEdge"
+            value="top"
+            bind:group={alignEdge}
           />
-          <button onclick={() => handlePageStep(-1)} title="前のページ (k)">
+          上端揃え
+        </label>
+        <label title="下端揃え (G)">
+          <input
+            type="radio"
+            name="alignEdge"
+            value="bottom"
+            bind:group={alignEdge}
+          />
+          下端揃え
+        </label>
+      </div>
+      <div class="controls-group">
+        <button
+          class="btn"
+          onclick={handlePrevPreviewEntry}
+          disabled={prevPreviewIndex === undefined ||
+            prevPreviewIndex >= previewList.length}
+          title="1つ前のページ (~)"
+        >
+          1つ前のページ
+        </button>
+      </div>
+    </div>
+
+    <aside class="sidebar">
+      {#each previewItems as { entry, index }}
+        <div
+          class="chip"
+          aria-current={index === previewIndex ? "true" : undefined}
+          onclick={() => navigatePreview(index)}
+        >
+          <span>{entry.year} p.{entry.page}</span>
+          <button
+            onclick={(e) => {
+              e.stopPropagation();
+              openInPicker(entry.year, entry.page);
+            }}
+            title="ピッカーで開く (o)"
+          >
+            ✎
+          </button>
+          <button
+            onclick={(e) => {
+              e.stopPropagation();
+              handleMoveEntry(index, -1);
+            }}
+            disabled={index === 0}
+            title="上へ (K)"
+          >
             ↑
           </button>
-          <button onclick={() => handlePageStep(1)} title="次のページ (j)">
+          <button
+            onclick={(e) => {
+              e.stopPropagation();
+              handleMoveEntry(index, 1);
+            }}
+            disabled={index === previewList.length - 1}
+            title="下へ (J)"
+          >
             ↓
           </button>
-        </div>
-        <div class="controls-group">
           <button
-            class="add-to-preview"
-            onclick={handleClearPage}
-            disabled={!tl && !br}
-            title="クリア (d)"
+            onclick={(e) => {
+              e.stopPropagation();
+              handleRemoveEntry(index);
+            }}
+            title="削除 (d)"
           >
-            クリア
-          </button>
-          <button
-            class="add-to-preview"
-            onclick={handleAddCurrentPage}
-            disabled={!tl ||
-              !br ||
-              previewList.some(
-                (e) => e.year === year && e.page === picker.page,
-              )}
-            title="プレビューに使う (a)"
-          >
-            プレビューに使う
+            ×
           </button>
         </div>
+      {/each}
+      <div class="add-form">
+        <select bind:value={addYear}>
+          {#each YEARS as y}<option value={y}>{y}</option>{/each}
+        </select>
+        <input
+          type="number"
+          min="1"
+          max={PAGE_COUNTS[addYear]}
+          bind:value={addPage}
+        />
+        <button
+          onclick={handleAddEntry}
+          disabled={!pickers[addYear].corners[addPage]?.topLeft ||
+            !pickers[addYear].corners[addPage]?.bottomRight ||
+            previewList.some((e) => e.year === addYear && e.page === addPage)}
+        >
+          追加
+        </button>
       </div>
+    </aside>
 
-      <div class="info">
-        <span>次のクリック: {nextClickToJa(picker.nextClick)}</span>
-        <span>
-          左上: {tl ? `(${tl.x.toFixed(1)}, ${tl.y.toFixed(1)})` : "—"}
-        </span>
-        <span>
-          右下: {br ? `(${br.x.toFixed(1)}, ${br.y.toFixed(1)})` : "—"}
-        </span>
-      </div>
-
-      <div class="viewer">
-        {#if browser}
+    <div class="viewer">
+      {#if browser}
+        {#each previewItems as { entry, transform, index }}
           <img
-            src={svgUrl(year, picker.page)}
-            alt="{picker.page}ページ目"
-            style="width: {scale * 100}%;"
-            onclick={handleClick}
-          />
-        {/if}
-        {#if tl}
-          {@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}
-        {/if}
-        {#if br}
-          {@render cornerMarker(br, "rgba(0, 200, 0, 0.5)")}
-        {/if}
-      </div>
-    {:else}
-      <div class="controls">
-        <label>
-          拡大
-          <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
-          {scale.toFixed(1)}
-        </label>
-        <div class="controls-group">
-          <label title="上端揃え (g)">
-            <input
-              type="radio"
-              name="alignEdge"
-              value="top"
-              bind:group={alignEdge}
-            />
-            上端揃え
-          </label>
-          <label title="下端揃え (G)">
-            <input
-              type="radio"
-              name="alignEdge"
-              value="bottom"
-              bind:group={alignEdge}
-            />
-            下端揃え
-          </label>
-        </div>
-        <div class="controls-group">
-          <button
-            class="add-to-preview"
-            onclick={handlePrevPreviewEntry}
-            disabled={prevPreviewIndex === undefined || prevPreviewIndex >= previewList.length}
-            title="1つ前のページ (~)"
-          >
-            1つ前のページ
-          </button>
-        </div>
-      </div>
-
-      <div class="preview-body">
-        <aside class="preview-sidebar">
-          {#each previewItems as { entry, index }}
-            <div
-              class="preview-chip"
-              aria-current={index === previewIndex ? "true" : undefined}
-              onclick={() => navigatePreview(index)}
-            >
-              <span>{entry.year} p.{entry.page}</span>
-              <button
-                onclick={(e) => {
-                  e.stopPropagation();
-                  openInPicker(entry.year, entry.page);
-                }}
-                title="ピッカーで開く (o)"
-              >
-                ✎
-              </button>
-              <button
-                onclick={(e) => {
-                  e.stopPropagation();
-                  handleMoveEntry(index, -1);
-                }}
-                disabled={index === 0}
-                title="上へ (K)"
-              >
-                ↑
-              </button>
-              <button
-                onclick={(e) => {
-                  e.stopPropagation();
-                  handleMoveEntry(index, 1);
-                }}
-                disabled={index === previewList.length - 1}
-                title="下へ (J)"
-              >
-                ↓
-              </button>
-              <button
-                onclick={(e) => {
-                  e.stopPropagation();
-                  handleRemoveEntry(index);
-                }}
-                title="削除 (d)"
-              >
-                ×
-              </button>
-            </div>
-          {/each}
-          <div class="preview-add">
-            <select bind:value={addYear}>
-              {#each YEARS as y}<option value={y}>{y}</option>{/each}
-            </select>
-            <input
-              type="number"
-              min="1"
-              max={PAGE_COUNTS[addYear]}
-              bind:value={addPage}
-            />
-            <button
-              onclick={handleAddEntry}
-              disabled={!pickers[addYear].corners[addPage]?.topLeft ||
-                !pickers[addYear].corners[addPage]?.bottomRight ||
-                previewList.some(
-                  (e) => e.year === addYear && e.page === addPage,
-                )}
-            >
-              追加
-            </button>
-          </div>
-        </aside>
-
-        <div class="viewer">
-          {#if browser}
-            {#each previewItems as { entry, transform, index }}
-              <img
-                src={svgUrl(entry.year, entry.page)}
-                alt="{entry.year}年{entry.page}ページ目"
-                style="top: {16 * scale}px; left: {16 * scale}px;
+            src={svgUrl(entry.year, entry.page)}
+            alt="{entry.year}年{entry.page}ページ目"
+            style="top: {16 * scale}px; left: {16 * scale}px;
                   transform: translate({(transform?.tx ?? 0) * scale}px,
                     {(transform?.ty ?? 0) * scale}px) scale({(transform?.sx ??
-                  1) * scale});
+              1) * scale});
                   opacity: {index === previewIndex && transform !== undefined
-                  ? 1
-                  : 0};"
-              />
-            {/each}
-          {/if}
-        </div>
-      </div>
-    {/if}
-  </div>
+              ? 1
+              : 0};"
+          />
+        {/each}
+      {/if}
+    </div>
+  {/if}
 </main>
 
 <style lang="scss">
@@ -582,13 +601,43 @@
     position: fixed;
     inset: 0;
     display: grid;
-    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
 
-    > div {
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+  [data-mode="picker"] {
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas:
+      "header"
+      "controls"
+      "info"
+      "viewer";
+  }
+
+  [data-mode="preview"] {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "header   header"
+      "controls controls"
+      "sidebar  viewer";
+  }
+
+  header {
+    grid-area: header;
+  }
+  .controls {
+    grid-area: controls;
+  }
+  .info {
+    grid-area: info;
+  }
+  .viewer {
+    grid-area: viewer;
+    min-height: 0;
+  }
+  .sidebar {
+    grid-area: sidebar;
+    min-height: 0;
   }
 
   header {
@@ -671,7 +720,7 @@
     margin-left: $sp-sm;
   }
 
-  .add-to-preview {
+  .btn {
     border: 1px solid $color-border;
     border-radius: 4px;
     background: transparent;
@@ -733,7 +782,6 @@
   }
 
   .viewer {
-    flex: 1;
     overflow: auto;
     position: relative;
 
@@ -762,13 +810,7 @@
     pointer-events: none;
   }
 
-  .preview-body {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-  }
-
-  .preview-sidebar {
+  .sidebar {
     display: flex;
     flex-direction: column;
     gap: $sp-xs;
@@ -779,7 +821,7 @@
     min-width: 130px;
   }
 
-  .preview-chip {
+  .chip {
     display: flex;
     align-items: center;
     gap: $sp-xs;
@@ -817,7 +859,7 @@
     }
   }
 
-  .preview-add {
+  .add-form {
     display: flex;
     flex-direction: column;
     gap: $sp-xs;
