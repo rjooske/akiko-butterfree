@@ -38,18 +38,19 @@ SVG `<img>` elements are wrapped in `{#if browser}` to prevent hydration mismatc
 
 ### Keyboard shortcuts
 
-| Key             | Mode    | Action                                              |
-| --------------- | ------- | --------------------------------------------------- |
-| `h` / `l`       | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
-| `+` / `-`       | both    | zoom in / out (step 0.1, clamped to 0.1–4)          |
-| `j` / `k`       | picker  | next / previous page                                |
-| `a`             | picker  | add current page to preview list                    |
-| `d`             | picker  | clear corners for current page                      |
-| `j` / `k`       | preview | cycle next / previous preview list entry            |
-| `J` / `K`       | preview | move current entry down / up in list                |
-| `d`             | preview | remove current entry from list                      |
-| `o`             | preview | open current entry in picker tab                    |
-| `g` / `G`       | preview | align top / bottom edge                             |
+| Key       | Mode    | Action                                              |
+| --------- | ------- | --------------------------------------------------- |
+| `h` / `l` | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
+| `+` / `-` | both    | zoom in / out (step 0.1, clamped to 0.1–4)          |
+| `j` / `k` | picker  | next / previous page                                |
+| `a`       | picker  | add current page to preview list                    |
+| `w`       | picker  | download current page as `<year>-<page>.svg`        |
+| `d`       | picker  | clear corners for current page                      |
+| `j` / `k` | preview | cycle next / previous preview list entry            |
+| `J` / `K` | preview | move current entry down / up in list                |
+| `d`       | preview | remove current entry from list                      |
+| `o`       | preview | open current entry in picker tab                    |
+| `g` / `G` | preview | align top / bottom edge                             |
 
 ### Styling
 

@@ -170,6 +170,19 @@
     picker.nextClick = "top-left";
   }
 
+  async function handleDownloadPage() {
+    const url = svgUrl(year, picker.page);
+    const filename = `${year}-${String(picker.page).padStart(3, "0")}.svg`;
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+  }
+
   function handleAddCurrentPage() {
     const c = picker.corners[picker.page];
     if (!c?.topLeft || !c?.bottomRight) return;
@@ -245,6 +258,7 @@
     | { kind: "page-step"; delta: -1 | 1 }
     | { kind: "add-page" }
     | { kind: "clear-page" }
+    | { kind: "download-page" }
     | { kind: "preview-cycle"; delta: -1 | 1 }
     | { kind: "move-entry"; delta: -1 | 1 }
     | { kind: "remove-entry" }
@@ -264,6 +278,7 @@
       if (key === "j") return { kind: "page-step", delta: 1 };
       if (key === "k") return { kind: "page-step", delta: -1 };
       if (key === "a") return { kind: "add-page" };
+      if (key === "w") return { kind: "download-page" };
       if (key === "d") return { kind: "clear-page" };
     }
     if (mode === "preview") {
@@ -303,6 +318,9 @@
         break;
       case "clear-page":
         handleClearPage();
+        break;
+      case "download-page":
+        handleDownloadPage();
         break;
       case "preview-cycle":
         handlePreviewCycle(action.delta);
@@ -407,6 +425,13 @@
         </button>
       </div>
       <div class="controls-group">
+        <button
+          class="btn"
+          onclick={handleDownloadPage}
+          title="ダウンロード (w)"
+        >
+          ダウンロード
+        </button>
         <button
           class="btn"
           onclick={handleClearPage}
