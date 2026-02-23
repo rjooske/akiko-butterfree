@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { resolve } from "$app/paths";
   import {
     type AlignEdge,
     type Corner,
@@ -376,6 +377,7 @@
         プレビュー
       </button>
     </nav>
+    <a href={resolve("/help")} class="help-link">ヘルプ</a>
   </header>
 
   {#if mode === "picker"}
@@ -685,6 +687,16 @@
           border-color: $color-accent;
           color: $color-surface;
         }
+      }
+    }
+
+    .help-link {
+      margin-left: auto;
+      color: $color-accent;
+      text-decoration: none;
+      font-size: 14px;
+      &:hover {
+        text-decoration: underline;
       }
     }
   }
