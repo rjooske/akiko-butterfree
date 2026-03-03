@@ -45,7 +45,14 @@
     return `${import.meta.env.BASE_URL}tables/${year}/${String(page).padStart(3, "0")}.svg`;
   }
 
+  function svgKey(year: Year, page: number): string {
+    return `${year}-${page}`;
+  }
+
   type AlignTransform = { tx: number; ty: number; sx: number };
+  type SvgPage = { viewBox: { w: number; h: number }; blobUrl: string };
+
+  const svgCache = new Map<string, SvgPage>();
 
   const initial = storageLoad();
   let mode = $state(initial.mode);
@@ -59,22 +66,9 @@
   let addYear = $state<Year>(2023);
   let addPage = $state(1);
   let prevPreviewIndex = $state<number | undefined>(undefined);
-  let viewBoxes = $state<Record<string, { w: number; h: number }>>({});
   let pickerViewer = $state<HTMLElement | undefined>();
   let previewViewer = $state<HTMLElement | undefined>();
   let activeViewer = $derived(mode === "picker" ? pickerViewer : previewViewer);
-
-  $effect(() => {
-    if (!browser) return;
-    loadViewBox(svgUrl(year, picker.page));
-  });
-
-  $effect(() => {
-    if (!browser) return;
-    for (const { year: y, page } of previewList) {
-      loadViewBox(svgUrl(y, page));
-    }
-  });
 
   $effect(() => {
     storageSave({
@@ -113,12 +107,34 @@
   });
 
   let previewItems = $derived(
-    previewList.map((entry, index) => ({
-      entry,
-      transform: alignTransforms[index],
-      index,
-    })),
+    previewList.map((entry, index) => ({ entry, index })),
   );
+
+  let currentImage = $derived.by((): Promise<SvgPage> | undefined => {
+    if (!browser) return undefined;
+    const entry =
+      mode === "picker"
+        ? { year, page: picker.page }
+        : previewList[previewIndex];
+    if (!entry) return undefined;
+    const key = svgKey(entry.year, entry.page);
+    const cached = svgCache.get(key);
+    if (cached) return Promise.resolve(cached);
+    const url = svgUrl(entry.year, entry.page);
+    return new Promise<SvgPage>((resolve) => {
+      (async () => {
+        const text = await (await fetch(url)).text();
+        const m = text.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+        const viewBox = m
+          ? { w: parseFloat(m[1]), h: parseFloat(m[2]) }
+          : { w: 0, h: 0 };
+        const blob = new Blob([text], { type: "image/svg+xml" });
+        const page = { viewBox, blobUrl: URL.createObjectURL(blob) };
+        svgCache.set(key, page);
+        resolve(page);
+      })().catch(() => {});
+    });
+  });
 
   function selectYear(y: Year) {
     mode = "picker";
@@ -212,24 +228,14 @@
     picker.nextClick = "top-left";
   }
 
-  async function loadViewBox(url: string): Promise<void> {
-    if (url in viewBoxes) return;
-    const text = await (await fetch(url)).text();
-    const m = text.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
-    if (m) viewBoxes[url] = { w: parseFloat(m[1]), h: parseFloat(m[2]) };
-  }
-
   async function handleDownloadPage() {
-    const url = svgUrl(year, picker.page);
+    const image = await currentImage;
+    if (!image) return;
     const filename = `${year}-${String(picker.page).padStart(3, "0")}.svg`;
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = blobUrl;
+    a.href = image.blobUrl;
     a.download = filename;
     a.click();
-    URL.revokeObjectURL(blobUrl);
   }
 
   function handleAddCurrentPage() {
@@ -513,16 +519,16 @@
     </div>
 
     <div class="viewer" bind:this={pickerViewer}>
-      {#if browser}
-        {@const pickerUrl = svgUrl(year, picker.page)}
-        {@const pickerVb = viewBoxes[pickerUrl]}
-        <img
-          src={pickerUrl}
-          alt="{picker.page}ページ目"
-          width={pickerVb ? pickerVb.w * scale : undefined}
-          height={pickerVb ? pickerVb.h * scale : undefined}
-          onclick={handleClick}
-        />
+      {#if browser && currentImage}
+        {#await currentImage then image}
+          <img
+            src={image.blobUrl}
+            alt="{picker.page}ページ目"
+            width={image.viewBox.w * scale}
+            height={image.viewBox.h * scale}
+            onclick={handleClick}
+          />
+        {/await}
       {/if}
       {#if tl}
         {@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}
@@ -642,24 +648,20 @@
     </aside>
 
     <div class="viewer" bind:this={previewViewer}>
-      {#if browser}
-        {#each previewItems as { entry, transform, index }}
-          {@const previewUrl = svgUrl(entry.year, entry.page)}
-          {@const previewVb = viewBoxes[previewUrl]}
-          {@const sx = transform?.sx ?? 1}
-          {@const tx = transform?.tx ?? 0}
-          {@const ty = transform?.ty ?? 0}
-          <img
-            src={previewUrl}
-            alt="{entry.year}年{entry.page}ページ目"
-            width={previewVb ? previewVb.w * sx * scale : undefined}
-            height={previewVb ? previewVb.h * sx * scale : undefined}
-            style="top: {(16 + ty) * scale}px; left: {(16 + tx) * scale}px;
-                  opacity: {index === previewIndex && transform !== undefined
-              ? 1
-              : 0};"
-          />
-        {/each}
+      {#if browser && currentImage}
+        {@const currentTransform = alignTransforms[previewIndex]}
+        {#if currentTransform}
+          {#await currentImage then image}
+            {@const { sx, tx, ty } = currentTransform}
+            <img
+              src={image.blobUrl}
+              alt="{previewList[previewIndex].year}年{previewList[previewIndex].page}ページ目"
+              width={image.viewBox.w * sx * scale}
+              height={image.viewBox.h * sx * scale}
+              style="top: {(16 + ty) * scale}px; left: {(16 + tx) * scale}px;"
+            />
+          {/await}
+        {/if}
       {/if}
     </div>
   {/if}
@@ -719,6 +721,11 @@
     grid-area: viewer;
     min-height: 0;
   }
+  [data-mode="preview"] .viewer > img {
+    position: absolute;
+    pointer-events: none;
+  }
+
   .sidebar {
     grid-area: sidebar;
     min-height: 0;
@@ -893,11 +900,6 @@
       border-radius: 50%;
       pointer-events: none;
     }
-  }
-
-  [data-mode="preview"] .viewer > img {
-    position: absolute;
-    pointer-events: none;
   }
 
   .sidebar {
