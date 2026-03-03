@@ -887,9 +887,8 @@
     }
 
     &[aria-current="true"] {
-      border-color: $color-accent;
-      background: $color-accent;
-      color: $color-surface;
+      outline: 2px solid $color-accent;
+      outline-offset: 1px;
     }
 
     button {
