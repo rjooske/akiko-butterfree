@@ -58,6 +58,19 @@
   let addYear = $state<Year>(2023);
   let addPage = $state(1);
   let prevPreviewIndex = $state<number | undefined>(undefined);
+  let viewBoxes = $state<Record<string, { w: number; h: number }>>({});
+
+  $effect(() => {
+    if (!browser) return;
+    loadViewBox(svgUrl(year, picker.page));
+  });
+
+  $effect(() => {
+    if (!browser) return;
+    for (const { year: y, page } of previewList) {
+      loadViewBox(svgUrl(y, page));
+    }
+  });
 
   $effect(() => {
     storageSave({
@@ -168,6 +181,13 @@
   function handleClearPage() {
     delete picker.corners[picker.page];
     picker.nextClick = "top-left";
+  }
+
+  async function loadViewBox(url: string): Promise<void> {
+    if (url in viewBoxes) return;
+    const text = await (await fetch(url)).text();
+    const m = text.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+    if (m) viewBoxes[url] = { w: parseFloat(m[1]), h: parseFloat(m[2]) };
   }
 
   async function handleDownloadPage() {
@@ -405,7 +425,7 @@
     <div class="controls">
       <label>
         拡大
-        <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+        <input type="range" min="0.1" max="10" step="0.1" bind:value={scale} />
         {scale.toFixed(1)}
       </label>
       <div class="page-control">
@@ -465,10 +485,13 @@
 
     <div class="viewer">
       {#if browser}
+        {@const pickerUrl = svgUrl(year, picker.page)}
+        {@const pickerVb = viewBoxes[pickerUrl]}
         <img
-          src={svgUrl(year, picker.page)}
+          src={pickerUrl}
           alt="{picker.page}ページ目"
-          style="width: {scale * 100}%;"
+          width={pickerVb ? pickerVb.w * scale : undefined}
+          height={pickerVb ? pickerVb.h * scale : undefined}
           onclick={handleClick}
         />
       {/if}
@@ -483,7 +506,7 @@
     <div class="controls">
       <label>
         拡大
-        <input type="range" min="0.1" max="4" step="0.1" bind:value={scale} />
+        <input type="range" min="0.1" max="10" step="0.1" bind:value={scale} />
         {scale.toFixed(1)}
       </label>
       <div class="controls-group">
@@ -592,13 +615,17 @@
     <div class="viewer">
       {#if browser}
         {#each previewItems as { entry, transform, index }}
+          {@const previewUrl = svgUrl(entry.year, entry.page)}
+          {@const previewVb = viewBoxes[previewUrl]}
+          {@const sx = transform?.sx ?? 1}
+          {@const tx = transform?.tx ?? 0}
+          {@const ty = transform?.ty ?? 0}
           <img
-            src={svgUrl(entry.year, entry.page)}
+            src={previewUrl}
             alt="{entry.year}年{entry.page}ページ目"
-            style="top: {16 * scale}px; left: {16 * scale}px;
-                  transform: translate({(transform?.tx ?? 0) * scale}px,
-                    {(transform?.ty ?? 0) * scale}px) scale({(transform?.sx ??
-              1) * scale});
+            width={previewVb ? previewVb.w * sx * scale : undefined}
+            height={previewVb ? previewVb.h * sx * scale : undefined}
+            style="top: {(16 + ty) * scale}px; left: {(16 + tx) * scale}px;
                   opacity: {index === previewIndex && transform !== undefined
               ? 1
               : 0};"
@@ -841,10 +868,6 @@
 
   [data-mode="preview"] .viewer > img {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    transform-origin: 0 0;
     pointer-events: none;
   }
 
