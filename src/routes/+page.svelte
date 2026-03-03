@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { tick } from "svelte";
   import { resolve } from "$app/paths";
   import {
     type AlignEdge,
@@ -59,6 +60,9 @@
   let addPage = $state(1);
   let prevPreviewIndex = $state<number | undefined>(undefined);
   let viewBoxes = $state<Record<string, { w: number; h: number }>>({});
+  let pickerViewer = $state<HTMLElement | undefined>();
+  let previewViewer = $state<HTMLElement | undefined>();
+  let activeViewer = $derived(mode === "picker" ? pickerViewer : previewViewer);
 
   $effect(() => {
     if (!browser) return;
@@ -173,6 +177,31 @@
       Math.max(0.1, Math.round((scale + delta * 0.1) * 10) / 10),
     );
   }
+
+  async function handleWheel(e: WheelEvent) {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const viewer = activeViewer;
+    if (!viewer) return;
+    const rect = viewer.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const oldScale = scale;
+    const newScale = Math.min(10, Math.max(0.1, oldScale * Math.exp(-e.deltaY * 0.01)));
+    const f = newScale / oldScale;
+    const newScrollLeft = (viewer.scrollLeft + cx) * f - cx;
+    const newScrollTop = (viewer.scrollTop + cy) * f - cy;
+    scale = newScale;
+    await tick();
+    viewer.scrollLeft = newScrollLeft;
+    viewer.scrollTop = newScrollTop;
+  }
+
+  $effect(() => {
+    if (!browser) return;
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  });
 
   function enterPreview() {
     mode = "preview";
@@ -483,7 +512,7 @@
       </span>
     </div>
 
-    <div class="viewer">
+    <div class="viewer" bind:this={pickerViewer}>
       {#if browser}
         {@const pickerUrl = svgUrl(year, picker.page)}
         {@const pickerVb = viewBoxes[pickerUrl]}
@@ -612,7 +641,7 @@
       </div>
     </aside>
 
-    <div class="viewer">
+    <div class="viewer" bind:this={previewViewer}>
       {#if browser}
         {#each previewItems as { entry, transform, index }}
           {@const previewUrl = svgUrl(entry.year, entry.page)}
