@@ -524,6 +524,7 @@
         <div
           class="chip"
           aria-current={index === previewIndex ? "true" : undefined}
+          data-year={entry.year}
           onclick={() => navigatePreview(index)}
         >
           <span>{entry.year} p.{entry.page}</span>
@@ -871,6 +872,18 @@
 
     > span {
       flex: 1;
+    }
+
+    $l: 98%;
+    $c: 8%;
+    &[data-year="2023"] {
+      background-color: oklch($l $c 0);
+    }
+    &[data-year="2024"] {
+      background-color: oklch($l $c 120);
+    }
+    &[data-year="2025"] {
+      background-color: oklch($l $c 240);
     }
 
     &[aria-current="true"] {
