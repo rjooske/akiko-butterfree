@@ -4,7 +4,6 @@
   import {
     type AlignEdge,
     type Corner,
-    type NextClick,
     PAGE_COUNTS,
     type Picker,
     type Storage,
@@ -38,9 +37,6 @@
     localStorage.setItem(STORAGE_KEY, storageEncode(s));
   }
 
-  function nextClickToJa(n: NextClick): string {
-    return n === "top-left" ? "左上" : "右下";
-  }
 
   function svgUrl(year: Year, page: number): string {
     return `${import.meta.env.BASE_URL}tables/${year}/${String(page).padStart(3, "0")}.svg`;
@@ -179,11 +175,6 @@
 
   function pickerSetPage(p: Picker, newPage: number) {
     p.page = newPage;
-    const c = p.corners[newPage];
-    p.nextClick =
-      c?.topLeft !== undefined && c?.bottomRight === undefined
-        ? "bottom-right"
-        : "top-left";
   }
 
   function getSnapCorner(pos: {
@@ -212,16 +203,15 @@
     const snapped = getSnapCorner(pos);
     const { x, y } = snapped ?? pos;
     const page = picker.page;
-    if (picker.nextClick === "top-left") {
+    const existing = picker.corners[page];
+    if (!existing?.topLeft) {
       picker.corners[page] = { topLeft: { x, y }, bottomRight: undefined };
-      picker.nextClick = "bottom-right";
     } else {
-      const existing = picker.corners[page];
+      const p1 = existing.topLeft;
       picker.corners[page] = {
-        topLeft: existing?.topLeft,
-        bottomRight: { x, y },
+        topLeft: { x: Math.min(p1.x, x), y: Math.min(p1.y, y) },
+        bottomRight: { x: Math.max(p1.x, x), y: Math.max(p1.y, y) },
       };
-      picker.nextClick = "top-left";
     }
   }
 
@@ -293,7 +283,6 @@
 
   function handleClearPage() {
     delete picker.corners[picker.page];
-    picker.nextClick = "top-left";
   }
 
   async function handleDownloadPage() {
@@ -584,7 +573,7 @@
     </div>
 
     <div class="info">
-      <span>次のクリック: {nextClickToJa(picker.nextClick)}</span>
+      <span>次のクリック: {!tl ? "1点目" : "2点目"}</span>
       <span>
         左上: {tl ? `(${tl.x.toFixed(1)}, ${tl.y.toFixed(1)})` : "—"}
       </span>

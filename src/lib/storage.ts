@@ -16,8 +16,6 @@ function cornerDecode(u: unknown): Corner | undefined {
   return { x: o.x, y: o.y };
 }
 
-export type NextClick = "top-left" | "bottom-right";
-
 type PageCorners = {
   topLeft: Corner | undefined;
   bottomRight: Corner | undefined;
@@ -64,14 +62,12 @@ function cornersDecode(
 export type Picker = {
   page: number;
   corners: Record<number, PageCorners>;
-  nextClick: NextClick;
 };
 
 function pickerDefault(): Picker {
   return {
     page: 1,
     corners: {},
-    nextClick: "top-left",
   };
 }
 
@@ -80,12 +76,10 @@ function pickerDecode(u: unknown, year: Year): Picker | undefined {
   const o = u as Record<string, unknown>;
   if (typeof o.page !== "number" || !Number.isInteger(o.page)) return undefined;
   if (o.page < 1 || o.page > PAGE_COUNTS[year]) return undefined;
-  if (o.nextClick !== "top-left" && o.nextClick !== "bottom-right")
-    return undefined;
   if (typeof o.corners !== "object" || o.corners === null) return undefined;
   const corners = cornersDecode(o.corners, year);
   if (corners === undefined) return undefined;
-  return { page: o.page, corners, nextClick: o.nextClick };
+  return { page: o.page, corners };
 }
 
 export type AlignEdge = "top" | "bottom";

@@ -18,7 +18,6 @@ describe("round-trip", () => {
       pickers: {
         2023: {
           page: 42,
-          nextClick: "bottom-right",
           corners: {
             42: {
               topLeft: { x: 10.5, y: 20.3 },
@@ -28,7 +27,6 @@ describe("round-trip", () => {
         },
         2024: {
           page: 7,
-          nextClick: "top-left",
           corners: {
             7: {
               topLeft: { x: 5, y: 15 },
@@ -42,7 +40,6 @@ describe("round-trip", () => {
         },
         2025: {
           page: 1,
-          nextClick: "top-left",
           corners: {},
         },
       },
