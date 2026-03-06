@@ -285,6 +285,14 @@
     delete picker.corners[picker.page];
   }
 
+  async function handleOpenInVenusaur() {
+    const image = currentImage;
+    if (!image) return;
+    const text = await (await fetch(image.blobUrl)).text();
+    localStorage.setItem("butterfree-to-venusaur", text);
+    window.open("https://rjooske.github.io/akiko-venusaur/", "_blank");
+  }
+
   async function handleDownloadPage() {
     const image = currentImage;
     if (!image) return;
@@ -568,6 +576,15 @@
           title="プレビューに使う (a)"
         >
           プレビューに使う
+        </button>
+      </div>
+      <div class="controls-group">
+        <button
+          class="btn"
+          onclick={handleOpenInVenusaur}
+          disabled={!currentImage}
+        >
+          フシギバナで開く
         </button>
       </div>
     </div>
