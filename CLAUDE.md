@@ -24,6 +24,7 @@ Single-page SvelteKit app statically prerendered (`src/routes/+layout.ts` export
 
 **The application state and validation logic lives in `src/lib/storage.ts`.**
 **The UI and interaction logic lives in `src/routes/+page.svelte`.**
+**The keyboard shortcut reference lives in `src/routes/help/+page.svelte`** (linked from the main page's ヘルプ button). Keep it in sync with `keyToAction` whenever shortcuts change.
 
 The app overlays scanned schedule pages from multiple years (2023/2024/2025) to compare them visually. Two modes:
 
