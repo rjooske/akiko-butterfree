@@ -1,6 +1,5 @@
 <script lang="ts">
   import { browser } from "$app/environment";
-  import { tick } from "svelte";
   import { resolve } from "$app/paths";
   import {
     type AlignEdge,
@@ -15,7 +14,9 @@
     storageDefault,
     storageEncode,
   } from "$lib/storage";
-  import { unreachable } from "$lib/util";
+  import { parseSvg } from "$lib/svg";
+  import { Throttle, minByKey, unreachable } from "$lib/util";
+  import { tick } from "svelte";
 
   const STORAGE_KEY = "akiko-butterfree";
 
@@ -50,7 +51,12 @@
   }
 
   type AlignTransform = { tx: number; ty: number; sx: number };
-  type SvgPage = { viewBox: { w: number; h: number }; blobUrl: string };
+  type SnapRect = { x: number; y: number; width: number; height: number };
+  type SvgPage = {
+    viewBox: { w: number; h: number };
+    blobUrl: string;
+    snapRects: SnapRect[];
+  };
 
   const svgCache = new Map<string, SvgPage>();
 
@@ -69,6 +75,8 @@
   let pickerViewer = $state<HTMLElement | undefined>();
   let previewViewer = $state<HTMLElement | undefined>();
   let activeViewer = $derived(mode === "picker" ? pickerViewer : previewViewer);
+  let currentImage = $state<SvgPage | undefined>(undefined);
+  let snapCorner = $state<{ x: number; y: number } | undefined>(undefined);
 
   $effect(() => {
     storageSave({
@@ -83,6 +91,54 @@
   });
 
   let picker = $derived(pickers[year]);
+
+  let currentEntry = $derived(
+    mode === "picker" ? { year, page: picker.page } : previewList[previewIndex],
+  );
+
+  $effect(() => {
+    const entry = currentEntry;
+    if (!entry || !browser) {
+      currentImage = undefined;
+      return;
+    }
+    const key = svgKey(entry.year, entry.page);
+    const cached = svgCache.get(key);
+    if (cached) {
+      currentImage = cached;
+      return;
+    }
+    currentImage = undefined;
+    let active = true;
+    (async () => {
+      const text = await (await fetch(svgUrl(entry.year, entry.page))).text();
+      if (!active) return;
+      const m = text.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+      const viewBox = m
+        ? { w: parseFloat(m[1]), h: parseFloat(m[2]) }
+        : { w: 0, h: 0 };
+      const parsed = parseSvg(text);
+      const snapRects: SnapRect[] = [];
+      if (parsed) {
+        for (const r of parsed.rects) {
+          if (Math.max(r.width, r.height) / Math.min(r.width, r.height) < 11)
+            continue;
+          snapRects.push(r);
+        }
+      }
+      const blob = new Blob([text], { type: "image/svg+xml" });
+      const page: SvgPage = {
+        viewBox,
+        blobUrl: URL.createObjectURL(blob),
+        snapRects,
+      };
+      svgCache.set(key, page);
+      if (active) currentImage = page;
+    })().catch(() => {});
+    return () => {
+      active = false;
+    };
+  });
 
   // For each previewList entry, compute a CSS transform that brings topLeft to
   // (0,0) and normalises content width to match the reference entry.
@@ -110,32 +166,6 @@
     previewList.map((entry, index) => ({ entry, index })),
   );
 
-  let currentImage = $derived.by((): Promise<SvgPage> | undefined => {
-    if (!browser) return undefined;
-    const entry =
-      mode === "picker"
-        ? { year, page: picker.page }
-        : previewList[previewIndex];
-    if (!entry) return undefined;
-    const key = svgKey(entry.year, entry.page);
-    const cached = svgCache.get(key);
-    if (cached) return Promise.resolve(cached);
-    const url = svgUrl(entry.year, entry.page);
-    return new Promise<SvgPage>((resolve) => {
-      (async () => {
-        const text = await (await fetch(url)).text();
-        const m = text.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
-        const viewBox = m
-          ? { w: parseFloat(m[1]), h: parseFloat(m[2]) }
-          : { w: 0, h: 0 };
-        const blob = new Blob([text], { type: "image/svg+xml" });
-        const page = { viewBox, blobUrl: URL.createObjectURL(blob) };
-        svgCache.set(key, page);
-        resolve(page);
-      })().catch(() => {});
-    });
-  });
-
   function selectYear(y: Year) {
     mode = "picker";
     year = y;
@@ -156,9 +186,31 @@
         : "top-left";
   }
 
+  function getSnapCorner(pos: {
+    x: number;
+    y: number;
+  }): { x: number; y: number } | undefined {
+    const rects = currentImage?.snapRects ?? [];
+    const corners = rects.flatMap((r) => [
+      { x: r.x, y: r.y },
+      { x: r.x + r.width, y: r.y },
+      { x: r.x, y: r.y + r.height },
+      { x: r.x + r.width, y: r.y + r.height },
+    ]);
+    const c = minByKey(corners, (c) => Math.hypot(c.x - pos.x, c.y - pos.y));
+    if (!c) return undefined;
+    return Math.hypot(c.x - pos.x, c.y - pos.y) < 50 / scale ? c : undefined;
+  }
+
   function handleClick(e: MouseEvent) {
-    const x = e.offsetX / scale;
-    const y = e.offsetY / scale;
+    if (!(e.target instanceof HTMLImageElement)) return;
+    const rect = e.target.getBoundingClientRect();
+    const pos = {
+      x: (e.clientX - rect.x) / scale,
+      y: (e.clientY - rect.y) / scale,
+    };
+    const snapped = getSnapCorner(pos);
+    const { x, y } = snapped ?? pos;
     const page = picker.page;
     if (picker.nextClick === "top-left") {
       picker.corners[page] = { topLeft: { x, y }, bottomRight: undefined };
@@ -172,6 +224,19 @@
       picker.nextClick = "top-left";
     }
   }
+
+  const handleMouseMoveThrottled = new Throttle(50, (e: MouseEvent) => {
+    if (!(e.target instanceof HTMLImageElement)) {
+      snapCorner = undefined;
+      return;
+    }
+    const rect = e.target.getBoundingClientRect();
+    const pos = {
+      x: (e.clientX - rect.x) / scale,
+      y: (e.clientY - rect.y) / scale,
+    };
+    snapCorner = getSnapCorner(pos);
+  });
 
   function handlePageInput(e: Event & { currentTarget: HTMLInputElement }) {
     const value = e.currentTarget.valueAsNumber;
@@ -203,7 +268,10 @@
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
     const oldScale = scale;
-    const newScale = Math.min(10, Math.max(0.1, oldScale * Math.exp(-e.deltaY * 0.01)));
+    const newScale = Math.min(
+      10,
+      Math.max(0.1, oldScale * Math.exp(-e.deltaY * 0.01)),
+    );
     const f = newScale / oldScale;
     const newScrollLeft = (viewer.scrollLeft + cx) * f - cx;
     const newScrollTop = (viewer.scrollTop + cy) * f - cy;
@@ -229,7 +297,7 @@
   }
 
   async function handleDownloadPage() {
-    const image = await currentImage;
+    const image = currentImage;
     if (!image) return;
     const filename = `${year}-${String(picker.page).padStart(3, "0")}.svg`;
     const a = document.createElement("a");
@@ -409,8 +477,15 @@
 
 {#snippet cornerMarker(corner: Corner, color: string)}
   <div
-    style="background: {color}; transform: translate(calc({corner.x *
-      scale}px - 5px), calc({corner.y * scale}px - 5px));"
+    class="corner-marker"
+    style="background: {color}; transform: translate(calc({corner.x * scale}px - var(--size) / 2), calc({corner.y * scale}px - var(--size) / 2));"
+  ></div>
+{/snippet}
+
+{#snippet snapIndicator(c: { x: number; y: number })}
+  <div
+    class="snap-indicator"
+    style="transform: translate(calc({c.x * scale}px - var(--size) / 2), calc({c.y * scale}px - var(--size) / 2));"
   ></div>
 {/snippet}
 
@@ -518,24 +593,23 @@
       </span>
     </div>
 
-    <div class="viewer" bind:this={pickerViewer}>
+    <div
+      class="viewer"
+      bind:this={pickerViewer}
+      onmousemove={(e) => handleMouseMoveThrottled.call(e)}
+    >
       {#if browser && currentImage}
-        {#await currentImage then image}
-          <img
-            src={image.blobUrl}
-            alt="{picker.page}ページ目"
-            width={image.viewBox.w * scale}
-            height={image.viewBox.h * scale}
-            onclick={handleClick}
-          />
-        {/await}
+        <img
+          src={currentImage.blobUrl}
+          alt="{picker.page}ページ目"
+          width={currentImage.viewBox.w * scale}
+          height={currentImage.viewBox.h * scale}
+          onclick={handleClick}
+        />
       {/if}
-      {#if tl}
-        {@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}
-      {/if}
-      {#if br}
-        {@render cornerMarker(br, "rgba(0, 200, 0, 0.5)")}
-      {/if}
+      {#if snapCorner}{@render snapIndicator(snapCorner)}{/if}
+      {#if tl}{@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}{/if}
+      {#if br}{@render cornerMarker(br, "rgba(0, 200, 0, 0.5)")}{/if}
     </div>
   {:else}
     <div class="controls">
@@ -651,16 +725,15 @@
       {#if browser && currentImage}
         {@const currentTransform = alignTransforms[previewIndex]}
         {#if currentTransform}
-          {#await currentImage then image}
-            {@const { sx, tx, ty } = currentTransform}
-            <img
-              src={image.blobUrl}
-              alt="{previewList[previewIndex].year}年{previewList[previewIndex].page}ページ目"
-              width={image.viewBox.w * sx * scale}
-              height={image.viewBox.h * sx * scale}
-              style="top: {(16 + ty) * scale}px; left: {(16 + tx) * scale}px;"
-            />
-          {/await}
+          {@const { sx, tx, ty } = currentTransform}
+          <img
+            src={currentImage.blobUrl}
+            alt="{previewList[previewIndex].year}年{previewList[previewIndex]
+              .page}ページ目"
+            width={currentImage.viewBox.w * sx * scale}
+            height={currentImage.viewBox.h * sx * scale}
+            style="top: {(16 + ty) * scale}px; left: {(16 + tx) * scale}px;"
+          />
         {/if}
       {/if}
     </div>
@@ -891,14 +964,27 @@
       cursor: crosshair;
     }
 
-    > div {
+    .corner-marker,
+    .snap-indicator {
       position: absolute;
       top: 0;
       left: 0;
-      width: $marker-size;
-      height: $marker-size;
+      width: var(--size);
+      height: var(--size);
       border-radius: 50%;
       pointer-events: none;
+    }
+
+    .corner-marker {
+      --size: #{$marker-size};
+    }
+
+    .snap-indicator {
+      --size: 16px;
+      background: rgba(37, 99, 235, 0.25);
+      border: 2px solid #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.4);
+      box-sizing: border-box;
     }
   }
 
