@@ -350,6 +350,18 @@
     navigatePreview((previewIndex + delta + n) % n);
   }
 
+  function handleSameYearCycle(delta: 1 | -1) {
+    if (previewList.length === 0) return;
+    const currentYear = previewList[previewIndex].year;
+    const sameYear = previewList
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => e.year === currentYear);
+    if (sameYear.length === 0) return;
+    const pos = sameYear.findIndex(({ i }) => i === previewIndex);
+    const next = sameYear[(pos + delta + sameYear.length) % sameYear.length];
+    navigatePreview(next.i);
+  }
+
   function handlePrevPreviewEntry() {
     if (
       prevPreviewIndex === undefined ||
@@ -384,7 +396,8 @@
     | { kind: "remove-entry" }
     | { kind: "prev-entry" }
     | { kind: "open-in-picker" }
-    | { kind: "set-align"; edge: AlignEdge };
+    | { kind: "set-align"; edge: AlignEdge }
+    | { kind: "same-year-cycle"; delta: -1 | 1 };
 
   function keyToAction(
     key: string,
@@ -411,6 +424,8 @@
       if (key === "o") return { kind: "open-in-picker" };
       if (key === "g") return { kind: "set-align", edge: "top" };
       if (key === "G") return { kind: "set-align", edge: "bottom" };
+      if (key === "w") return { kind: "same-year-cycle", delta: 1 };
+      if (key === "b") return { kind: "same-year-cycle", delta: -1 };
     }
   }
 
@@ -463,6 +478,9 @@
         break;
       case "set-align":
         alignEdge = action.edge;
+        break;
+      case "same-year-cycle":
+        handleSameYearCycle(action.delta);
         break;
       default:
         unreachable(action);
