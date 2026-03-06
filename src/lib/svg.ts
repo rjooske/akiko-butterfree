@@ -1,16 +1,16 @@
+import * as svgParser from "svg-parser";
+import svgPathParser from "svg-path-parser";
 import {
+  type Rect,
+  type Vector,
   vectorAdd,
   vectorAngle,
   vectorDot,
   vectorNormalize,
   vectorScale,
   vectorSub,
-  type Rect,
-  type Vector,
 } from "./geometry";
 import { sortByKeyCached, tryParseFloat, unreachable } from "./util";
-import * as svgParser from "svg-parser";
-import svgPathParser from "svg-path-parser";
 
 function elementNodeToPathD(e: svgParser.ElementNode): string | undefined {
   if (

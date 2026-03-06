@@ -37,7 +37,6 @@
     localStorage.setItem(STORAGE_KEY, storageEncode(s));
   }
 
-
   function svgUrl(year: Year, page: number): string {
     return `${import.meta.env.BASE_URL}tables/${year}/${String(page).padStart(3, "0")}.svg`;
   }
@@ -493,14 +492,17 @@
 {#snippet cornerMarker(corner: Corner, color: string)}
   <div
     class="corner-marker"
-    style="background: {color}; transform: translate(calc({corner.x * scale}px - var(--size) / 2), calc({corner.y * scale}px - var(--size) / 2));"
+    style="background: {color}; transform: translate(calc({corner.x *
+      scale}px - var(--size) / 2), calc({corner.y *
+      scale}px - var(--size) / 2));"
   ></div>
 {/snippet}
 
 {#snippet snapIndicator(c: { x: number; y: number })}
   <div
     class="snap-indicator"
-    style="transform: translate(calc({c.x * scale}px - var(--size) / 2), calc({c.y * scale}px - var(--size) / 2));"
+    style="transform: translate(calc({c.x *
+      scale}px - var(--size) / 2), calc({c.y * scale}px - var(--size) / 2));"
   ></div>
 {/snippet}
 

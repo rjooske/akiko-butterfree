@@ -12,7 +12,10 @@ describe("round-trip", () => {
       mode: "preview",
       year: 2024,
       scale: 2.5,
-      previewList: [{ year: 2024, page: 7 }, { year: 2023, page: 42 }],
+      previewList: [
+        { year: 2024, page: 7 },
+        { year: 2023, page: 42 },
+      ],
       previewIndex: 1,
       alignEdge: "bottom",
       pickers: {
@@ -61,12 +64,25 @@ describe("storageDecode malformed input", () => {
       "missing pickers",
       JSON.stringify({ ...storageDefault(), pickers: undefined }),
     ],
-    ["invalid previewList entry",
-      JSON.stringify({ ...storageDefault(), previewList: [{ year: 9999, page: 1 }] })],
-    ["previewIndex out of range (empty list)",
-      JSON.stringify({ ...storageDefault(), previewList: [], previewIndex: 1 })],
-    ["previewIndex out of range (non-empty list)",
-      JSON.stringify({ ...storageDefault(), previewList: [{ year: 2023, page: 1 }], previewIndex: 1 })],
+    [
+      "invalid previewList entry",
+      JSON.stringify({
+        ...storageDefault(),
+        previewList: [{ year: 9999, page: 1 }],
+      }),
+    ],
+    [
+      "previewIndex out of range (empty list)",
+      JSON.stringify({ ...storageDefault(), previewList: [], previewIndex: 1 }),
+    ],
+    [
+      "previewIndex out of range (non-empty list)",
+      JSON.stringify({
+        ...storageDefault(),
+        previewList: [{ year: 2023, page: 1 }],
+        previewIndex: 1,
+      }),
+    ],
     [
       "picker page out of range",
       JSON.stringify({
