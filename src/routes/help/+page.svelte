@@ -65,7 +65,7 @@
         </tr>
         <tr>
           <td><kbd>d</kbd></td>
-          <td>現在のページの角をクリア</td>
+          <td>現在のページの選択点をクリア</td>
         </tr>
       </tbody>
     </table>
@@ -112,6 +112,14 @@
             <kbd>G</kbd>
           </td>
           <td>上端揃え / 下端揃え</td>
+        </tr>
+        <tr>
+          <td>
+            <kbd>w</kbd>
+            /
+            <kbd>b</kbd>
+          </td>
+          <td>同じ年の次のページを表示 / 前のページを表示</td>
         </tr>
         <tr>
           <td><kbd>~</kbd></td>
