@@ -563,6 +563,7 @@
           max={PAGE_COUNTS[year]}
           value={picker.page}
           oninput={handlePageInput}
+          onkeydown={(e) => e.key === "Escape" && e.currentTarget.blur()}
         />
         <button onclick={() => handlePageStep(-1)} title="前のページ (k)">
           ↑
