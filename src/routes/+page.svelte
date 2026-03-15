@@ -1,6 +1,8 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { resolve } from "$app/paths";
+  import { type Major, MAJOR_TO_JA } from "$lib/constants";
+  import { YEAR_TO_PAGE_TO_MAJORS, type PageToMajors } from "$lib/bookmark";
   import {
     type AlignEdge,
     type Corner,
@@ -52,6 +54,19 @@
     blobUrl: string;
     snapRects: SnapRect[];
   };
+  type Bookmark = { page: number; names: Major[] };
+
+  function pageToMajorsToBookmarks(m: PageToMajors): Bookmark[] {
+    return (Object.entries(m) as [string, Major[]][])
+      .map(([page, names]) => ({ page: Number(page), names }))
+      .sort((a, b) => a.page - b.page);
+  }
+
+  const bookmarks: Record<Year, Bookmark[]> = {
+    2023: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2023]),
+    2024: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2024]),
+    2025: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2025]),
+  };
 
   const svgCache = new Map<string, SvgPage>();
 
@@ -66,6 +81,7 @@
   // transient, not persisted:
   let addYear = $state<Year>(2023);
   let addPage = $state(1);
+
   let prevPreviewIndex = $state<number | undefined>(undefined);
   let pickerViewer = $state<HTMLElement | undefined>();
   let previewViewer = $state<HTMLElement | undefined>();
@@ -86,6 +102,7 @@
   });
 
   let picker = $derived(pickers[year]);
+  let pickerBookmarks = $derived(bookmarks[year]);
 
   let currentEntry = $derived(
     mode === "picker" ? { year, page: picker.page } : previewList[previewIndex],
@@ -241,6 +258,24 @@
     pickerSetPage(picker, next);
   }
 
+  function handleBookmarkCycle(delta: 1 | -1) {
+    const bs = pickerBookmarks;
+    if (bs.length === 0) return;
+    const pos = bs.findIndex((b) => b.page === picker.page);
+    if (pos === -1) {
+      // not on a bookmark: jump to nearest in direction
+      const target =
+        delta === 1
+          ? bs.find((b) => b.page > picker.page)
+          : [...bs].reverse().find((b) => b.page < picker.page);
+      if (target) pickerSetPage(picker, target.page);
+    } else {
+      const next = pos + delta;
+      if (next < 0 || next >= bs.length) return;
+      pickerSetPage(picker, bs[next].page);
+    }
+  }
+
   function handleZoomStep(delta: 1 | -1) {
     scale = Math.min(
       4,
@@ -386,7 +421,7 @@
   type Action =
     | { kind: "tab-step"; delta: -1 | 1 }
     | { kind: "zoom-step"; delta: -1 | 1 }
-    | { kind: "page-step"; delta: -1 | 1 }
+    | { kind: "bookmark-cycle"; delta: -1 | 1 }
     | { kind: "add-page" }
     | { kind: "clear-page" }
     | { kind: "download-page" }
@@ -407,8 +442,8 @@
     if (key === "+") return { kind: "zoom-step", delta: 1 };
     if (key === "-") return { kind: "zoom-step", delta: -1 };
     if (mode === "picker") {
-      if (key === "j") return { kind: "page-step", delta: 1 };
-      if (key === "k") return { kind: "page-step", delta: -1 };
+      if (key === "j") return { kind: "bookmark-cycle", delta: 1 };
+      if (key === "k") return { kind: "bookmark-cycle", delta: -1 };
       if (key === "a") return { kind: "add-page" };
       if (key === "w") return { kind: "download-page" };
       if (key === "d") return { kind: "clear-page" };
@@ -444,8 +479,8 @@
       case "zoom-step":
         handleZoomStep(action.delta);
         break;
-      case "page-step":
-        handlePageStep(action.delta);
+      case "bookmark-cycle":
+        handleBookmarkCycle(action.delta);
         break;
       case "add-page":
         handleAddCurrentPage();
@@ -620,6 +655,19 @@
       </span>
     </div>
 
+    <aside class="sidebar">
+      {#each pickerBookmarks as bookmark}
+        <div
+          class="chip"
+          aria-current={bookmark.page === picker.page ? "true" : undefined}
+          data-year={year}
+          onclick={() => pickerSetPage(picker, bookmark.page)}
+        >
+          <span>p.{bookmark.page} {bookmark.names.map((n) => MAJOR_TO_JA[n]).join(", ")}</span>
+        </div>
+      {/each}
+    </aside>
+
     <div
       class="viewer"
       bind:this={pickerViewer}
@@ -686,7 +734,7 @@
           data-year={entry.year}
           onclick={() => navigatePreview(index)}
         >
-          <span>{entry.year} p.{entry.page}</span>
+          <span>{entry.year} p.{entry.page}{#if YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]}{" "}{YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]!.map((n) => MAJOR_TO_JA[n]).join(", ")}{/if}</span>
           <button
             onclick={(e) => {
               e.stopPropagation();
@@ -791,12 +839,13 @@
   }
 
   [data-mode="picker"] {
+    grid-template-columns: auto 1fr;
     grid-template-rows: auto auto auto 1fr;
     grid-template-areas:
-      "header"
-      "controls"
-      "info"
-      "viewer";
+      "header   header"
+      "controls controls"
+      "sidebar  info"
+      "sidebar  viewer";
   }
 
   [data-mode="preview"] {
@@ -1024,6 +1073,7 @@
     background: $color-surface;
     overflow-y: auto;
     min-width: 130px;
+    max-width: 300px;
   }
 
   .chip {
