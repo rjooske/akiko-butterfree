@@ -41,6 +41,8 @@ SVGs are fetched once and cached as blob URLs in `svgCache` (`Map<string, SvgPag
 
 **`src/lib/geometry.ts`** — vector/segment/edge geometry types and math (copied from `src-other/lib/app.ts`).
 **`src/lib/svg.ts`** — parses SVG path data into `Rect[]` via `svg-parser` + `svg-path-parser`.
+**`src/lib/constants.ts`** — `MAJORS`, `Major` type, `MAJOR_TO_JA` (Japanese display names), `majorCompare`.
+**`src/lib/bookmark.ts`** — `YEAR_TO_MAJOR_TO_PAGE` and `YEAR_TO_PAGE_TO_MAJORS` mapping majors to page numbers per year. Used to populate the picker sidebar bookmarks.
 
 ### Keyboard shortcuts
 
@@ -48,8 +50,9 @@ SVGs are fetched once and cached as blob URLs in `svgCache` (`Map<string, SvgPag
 | --------- | ------- | --------------------------------------------------- |
 | `h` / `l` | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
 | `+` / `-` | both    | zoom in / out (step 0.1, clamped to 0.1–4)          |
-| `j` / `k` | picker  | next / previous page                                |
+| `j` / `k` | picker  | next / previous bookmark                            |
 | `a`       | picker  | add current page to preview list                    |
+| `q`       | picker  | auto-set corners (largest valid rect from snap pts) |
 | `w`       | picker  | download current page as `<year>-<page>.svg`        |
 | `d`       | picker  | clear corners for current page                      |
 | `j` / `k` | preview | cycle next / previous preview list entry            |
@@ -68,9 +71,9 @@ Shared SCSS variables live in `src/routes/variables.scss` (imported as `@use "./
 - **Fonts**: `$font-sans`, `$font-mono`; size: `$font-h1`
 - **Misc**: `$marker-size`
 
-`<main>` is the CSS Grid container; layout is defined with `grid-template-areas` per mode. Picker areas: `header / controls / info / viewer` (single column). Preview areas: `header` and `controls` span both columns, last row splits into `sidebar | viewer`.
+`<main>` is the CSS Grid container; layout is defined with `grid-template-areas` per mode. Picker areas: `header` and `controls` span both columns, then `sidebar | info` and `sidebar | viewer` (sidebar spans last two rows). Preview areas: same two-column structure with `sidebar | viewer` in the last row.
 
-Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.controls-group` (sub-group within a controls row, adds `$sp-sm` left margin for visual separation), `.info` (muted monospace status row, picker only), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons), `.btn` (generic styled action button in the toolbar), `.sidebar` (preview entry list, grid area `sidebar`), `.chip` (one entry row in the sidebar), `.add-form` (form to add an entry to the sidebar), `.corner-marker` (selected corner dot, uses `--size: $marker-size`), `.snap-indicator` (hover snap ring, uses `--size: 16px`).
+Key CSS classes in `+page.svelte`: `.controls` (flex toolbar row, surface background), `.controls-group` (sub-group within a controls row, adds `$sp-sm` left margin for visual separation), `.info` (muted monospace status row, picker only), `.viewer` (scrollable SVG area), `.page-control` (page input + step buttons), `.btn` (generic styled action button in the toolbar), `.sidebar` (entry/bookmark list, grid area `sidebar`, used in both picker and preview modes), `.chip` (one entry row in the sidebar), `.add-form` (form to add an entry to the sidebar), `.corner-marker` (selected corner dot, uses `--size: $marker-size`), `.snap-indicator` (hover snap ring, uses `--size: 16px`).
 
 ## Code conventions
 

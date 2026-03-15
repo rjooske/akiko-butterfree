@@ -53,11 +53,15 @@
             /
             <kbd>k</kbd>
           </td>
-          <td>次のページ / 前のページ</td>
+          <td>次のブックマークへ / 前のブックマークへ</td>
         </tr>
         <tr>
           <td><kbd>a</kbd></td>
           <td>現在のページをプレビューに使う</td>
+        </tr>
+        <tr>
+          <td><kbd>q</kbd></td>
+          <td>角を自動設定</td>
         </tr>
         <tr>
           <td><kbd>w</kbd></td>
