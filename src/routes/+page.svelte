@@ -209,6 +209,35 @@
     return Math.hypot(c.x - pos.x, c.y - pos.y) < 50 / scale ? c : undefined;
   }
 
+  function findBestCorners(
+    snapRects: SnapRect[],
+  ): { topLeft: Corner; bottomRight: Corner } | undefined {
+    const pts = snapRects.flatMap((r) => [
+      { x: r.x, y: r.y },
+      { x: r.x + r.width, y: r.y },
+      { x: r.x, y: r.y + r.height },
+      { x: r.x + r.width, y: r.y + r.height },
+    ]);
+    const has = (x: number, y: number) =>
+      pts.some((p) => Math.hypot(p.x - x, p.y - y) <= 0.001);
+    let bestArea = 0;
+    let best: { topLeft: Corner; bottomRight: Corner } | undefined;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const tlx = Math.min(pts[i].x, pts[j].x);
+        const tly = Math.min(pts[i].y, pts[j].y);
+        const brx = Math.max(pts[i].x, pts[j].x);
+        const bry = Math.max(pts[i].y, pts[j].y);
+        const area = (brx - tlx) * (bry - tly);
+        if (area <= bestArea) continue;
+        if (!has(tlx, bry) || !has(brx, tly)) continue;
+        bestArea = area;
+        best = { topLeft: { x: tlx, y: tly }, bottomRight: { x: brx, y: bry } };
+      }
+    }
+    return best;
+  }
+
   function handleClick(e: MouseEvent) {
     if (!(e.target instanceof HTMLImageElement)) return;
     const rect = e.target.getBoundingClientRect();
@@ -320,6 +349,12 @@
     delete picker.corners[picker.page];
   }
 
+  function handleAutoSetCorners() {
+    const result = findBestCorners(currentImage?.snapRects ?? []);
+    if (!result) return;
+    picker.corners[picker.page] = result;
+  }
+
   async function handleOpenInVenusaur() {
     const image = currentImage;
     if (!image) return;
@@ -424,6 +459,7 @@
     | { kind: "zoom-step"; delta: -1 | 1 }
     | { kind: "bookmark-cycle"; delta: -1 | 1 }
     | { kind: "add-page" }
+    | { kind: "auto-set-corners" }
     | { kind: "clear-page" }
     | { kind: "download-page" }
     | { kind: "preview-cycle"; delta: -1 | 1 }
@@ -446,6 +482,7 @@
       if (key === "j") return { kind: "bookmark-cycle", delta: 1 };
       if (key === "k") return { kind: "bookmark-cycle", delta: -1 };
       if (key === "a") return { kind: "add-page" };
+      if (key === "q") return { kind: "auto-set-corners" };
       if (key === "w") return { kind: "download-page" };
       if (key === "d") return { kind: "clear-page" };
     }
@@ -485,6 +522,9 @@
         break;
       case "add-page":
         handleAddCurrentPage();
+        break;
+      case "auto-set-corners":
+        handleAutoSetCorners();
         break;
       case "clear-page":
         handleClearPage();
@@ -615,6 +655,14 @@
           title="ダウンロード (w)"
         >
           ダウンロード
+        </button>
+        <button
+          class="btn"
+          onclick={handleAutoSetCorners}
+          disabled={!currentImage}
+          title="角を自動設定 (q)"
+        >
+          角を自動設定
         </button>
         <button
           class="btn"
