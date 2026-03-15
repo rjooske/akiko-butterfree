@@ -220,6 +220,7 @@
     const { x, y } = snapped ?? pos;
     const page = picker.page;
     const existing = picker.corners[page];
+    if (existing?.topLeft && existing?.bottomRight) return;
     if (!existing?.topLeft) {
       picker.corners[page] = { topLeft: { x, y }, bottomRight: undefined };
     } else {
@@ -646,7 +647,7 @@
     </div>
 
     <div class="info">
-      <span>次のクリック: {!tl ? "1点目" : "2点目"}</span>
+      {#if !(tl && br)}<span>次のクリック: {!tl ? "1点目" : "2点目"}</span>{/if}
       <span>
         左上: {tl ? `(${tl.x.toFixed(1)}, ${tl.y.toFixed(1)})` : "—"}
       </span>
@@ -679,10 +680,11 @@
           alt="{picker.page}ページ目"
           width={currentImage.viewBox.w * scale}
           height={currentImage.viewBox.h * scale}
+          style={tl && br ? "cursor: default;" : undefined}
           onclick={handleClick}
         />
       {/if}
-      {#if snapCorner}{@render snapIndicator(snapCorner)}{/if}
+      {#if snapCorner && !(tl && br)}{@render snapIndicator(snapCorner)}{/if}
       {#if tl}{@render cornerMarker(tl, "rgba(255, 0, 0, 0.5)")}{/if}
       {#if br}{@render cornerMarker(br, "rgba(0, 200, 0, 0.5)")}{/if}
     </div>
