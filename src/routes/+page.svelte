@@ -730,6 +730,7 @@
           <span>
             p.{bookmark.page}
             {bookmark.names.map((n) => MAJOR_TO_JA[n]).join(", ")}
+            <br /><span class="chip-shorthand">{bookmark.names.join(", ")}</span>
           </span>
         </div>
       {/each}
@@ -811,11 +812,12 @@
           onclick={() => navigatePreview(index)}
         >
           <span>
-            {entry.year} p.{entry.page}{#if YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]}{" "}{YEAR_TO_PAGE_TO_MAJORS[
+            {entry.year}{#if YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]}{" "}{YEAR_TO_PAGE_TO_MAJORS[
                 entry.year
               ]
                 [entry.page]!.map((n) => MAJOR_TO_JA[n])
-                .join(", ")}{/if}
+                .join(", ")}
+              <br /><span class="chip-shorthand">{YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]!.join(", ")}</span>{/if}
           </span>
           <button
             onclick={(e) => {
@@ -1166,11 +1168,16 @@
     border: 1px solid $color-border;
     border-radius: 4px;
     font-size: 13px;
-    font-family: $font-mono;
+    font-family: $font-sans;
     cursor: pointer;
 
     > span {
       flex: 1;
+    }
+
+    .chip-shorthand {
+      font-family: $font-mono;
+      font-weight: bold;
     }
 
     $l: 98%;
