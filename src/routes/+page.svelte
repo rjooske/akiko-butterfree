@@ -712,7 +712,10 @@
           data-year={year}
           onclick={() => pickerSetPage(picker, bookmark.page)}
         >
-          <span>p.{bookmark.page} {bookmark.names.map((n) => MAJOR_TO_JA[n]).join(", ")}</span>
+          <span>
+            p.{bookmark.page}
+            {bookmark.names.map((n) => MAJOR_TO_JA[n]).join(", ")}
+          </span>
         </div>
       {/each}
     </aside>
@@ -784,7 +787,13 @@
           data-year={entry.year}
           onclick={() => navigatePreview(index)}
         >
-          <span>{entry.year} p.{entry.page}{#if YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]}{" "}{YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]!.map((n) => MAJOR_TO_JA[n]).join(", ")}{/if}</span>
+          <span>
+            {entry.year} p.{entry.page}{#if YEAR_TO_PAGE_TO_MAJORS[entry.year][entry.page]}{" "}{YEAR_TO_PAGE_TO_MAJORS[
+                entry.year
+              ]
+                [entry.page]!.map((n) => MAJOR_TO_JA[n])
+                .join(", ")}{/if}
+          </span>
           <button
             onclick={(e) => {
               e.stopPropagation();
@@ -1123,7 +1132,7 @@
     background: $color-surface;
     overflow-y: auto;
     min-width: 130px;
-    max-width: 300px;
+    max-width: 220px;
   }
 
   .chip {
