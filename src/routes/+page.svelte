@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { resolve } from "$app/paths";
-  import { type Major, MAJOR_TO_JA } from "$lib/constants";
+  import { type Major, MAJOR_TO_JA, majorCompare } from "$lib/constants";
   import { YEAR_TO_PAGE_TO_MAJORS, type PageToMajors } from "$lib/bookmark";
   import {
     type AlignEdge,
@@ -433,6 +433,27 @@
     navigatePreview(next.i);
   }
 
+  function handleSortEntries() {
+    if (previewList.length === 0) return;
+    const current = previewList[previewIndex];
+    previewList = [...previewList].sort((a, b) => {
+      const aMajor = YEAR_TO_PAGE_TO_MAJORS[a.year][a.page]?.[0];
+      const bMajor = YEAR_TO_PAGE_TO_MAJORS[b.year][b.page]?.[0];
+      if (aMajor !== undefined && bMajor !== undefined) {
+        const mc = majorCompare(aMajor, bMajor);
+        if (mc !== 0) return mc;
+      } else if (aMajor !== undefined) {
+        return -1;
+      } else if (bMajor !== undefined) {
+        return 1;
+      }
+      return a.year - b.year;
+    });
+    previewIndex = previewList.findIndex(
+      (e) => e.year === current.year && e.page === current.page,
+    );
+  }
+
   function handlePrevPreviewEntry() {
     if (
       prevPreviewIndex === undefined ||
@@ -469,7 +490,8 @@
     | { kind: "prev-entry" }
     | { kind: "open-in-picker" }
     | { kind: "set-align"; edge: AlignEdge }
-    | { kind: "same-year-cycle"; delta: -1 | 1 };
+    | { kind: "same-year-cycle"; delta: -1 | 1 }
+    | { kind: "sort-entries" };
 
   function keyToAction(
     key: string,
@@ -499,6 +521,7 @@
       if (key === "G") return { kind: "set-align", edge: "bottom" };
       if (key === "w") return { kind: "same-year-cycle", delta: 1 };
       if (key === "b") return { kind: "same-year-cycle", delta: -1 };
+      if (key === "s") return { kind: "sort-entries" };
     }
   }
 
@@ -557,6 +580,9 @@
         break;
       case "same-year-cycle":
         handleSameYearCycle(action.delta);
+        break;
+      case "sort-entries":
+        handleSortEntries();
         break;
       default:
         unreachable(action);
@@ -764,6 +790,14 @@
           title="1つ前のページ (~)"
         >
           1つ前のページ
+        </button>
+        <button
+          class="btn"
+          onclick={handleSortEntries}
+          disabled={previewList.length === 0}
+          title="学類・年順にソート (s)"
+        >
+          ソート
         </button>
       </div>
     </div>

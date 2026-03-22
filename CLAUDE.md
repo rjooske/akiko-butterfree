@@ -48,7 +48,7 @@ SVGs are fetched once and cached as blob URLs in `svgCache` (`Map<string, SvgPag
 
 | Key       | Mode    | Action                                              |
 | --------- | ------- | --------------------------------------------------- |
-| `h` / `l` | both    | cycle tabs (2023 → 2024 → 2025 → プレビュー, wraps) |
+| `h` / `l` | both    | cycle tabs (2023 → 2024 → 2025 → 2026 → プレビュー, wraps) |
 | `+` / `-` | both    | zoom in / out (step 0.1, clamped to 0.1–4)          |
 | `j` / `k` | picker  | next / previous bookmark                            |
 | `a`       | picker  | add current page to preview list                    |
@@ -61,6 +61,7 @@ SVGs are fetched once and cached as blob URLs in `svgCache` (`Map<string, SvgPag
 | `o`       | preview | open current entry in picker tab                    |
 | `g` / `G` | preview | align top / bottom edge                             |
 | `w` / `b` | preview | cycle next / previous entry of the same year        |
+| `s`       | preview | sort list by major then year                        |
 
 ### Styling
 
