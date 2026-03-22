@@ -590,34 +590,15 @@
       <span>あきこバタフリー</span>
     </h1>
     <nav>
-      <button
-        onclick={() => selectYear(2023)}
-        aria-current={mode === "picker" && year === 2023 ? "true" : undefined}
-        title="2023 (h/l)"
-      >
-        2023
-      </button>
-      <button
-        onclick={() => selectYear(2024)}
-        aria-current={mode === "picker" && year === 2024 ? "true" : undefined}
-        title="2024 (h/l)"
-      >
-        2024
-      </button>
-      <button
-        onclick={() => selectYear(2025)}
-        aria-current={mode === "picker" && year === 2025 ? "true" : undefined}
-        title="2025 (h/l)"
-      >
-        2025
-      </button>
-      <button
-        onclick={() => selectYear(2026)}
-        aria-current={mode === "picker" && year === 2026 ? "true" : undefined}
-        title="2026 (h/l)"
-      >
-        2026
-      </button>
+      {#each YEARS as y}
+        <button
+          onclick={() => selectYear(y)}
+          aria-current={mode === "picker" && year === y ? "true" : undefined}
+          title="{y} (h/l)"
+        >
+          {y}
+        </button>
+      {/each}
       <button
         onclick={enterPreview}
         aria-current={mode === "preview" ? "true" : undefined}
