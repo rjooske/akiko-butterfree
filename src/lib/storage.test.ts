@@ -45,6 +45,10 @@ describe("round-trip", () => {
           page: 1,
           corners: {},
         },
+        2026: {
+          page: 1,
+          corners: {},
+        },
       },
     };
     const decoded = storageDecode(JSON.parse(storageEncode(original)));

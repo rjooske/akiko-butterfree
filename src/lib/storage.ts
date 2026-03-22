@@ -1,9 +1,9 @@
-export const PAGE_COUNTS = { 2023: 118, 2024: 121, 2025: 125 } as const;
+export const PAGE_COUNTS = { 2023: 118, 2024: 121, 2025: 125, 2026: 127 } as const;
 export type Year = keyof typeof PAGE_COUNTS;
-export const YEARS = [2023, 2024, 2025] as const;
+export const YEARS = [2023, 2024, 2025, 2026] as const;
 
 function isYear(v: unknown): v is Year {
-  return v === 2023 || v === 2024 || v === 2025;
+  return v === 2023 || v === 2024 || v === 2025 || v === 2026;
 }
 
 export type Corner = { x: number; y: number };
@@ -125,6 +125,7 @@ export function storageDefault(): Storage {
       2023: pickerDefault(),
       2024: pickerDefault(),
       2025: pickerDefault(),
+      2026: pickerDefault(),
     },
     previewList: [],
     previewIndex: 0,

@@ -66,6 +66,7 @@
     2023: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2023]),
     2024: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2024]),
     2025: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2025]),
+    2026: pageToMajorsToBookmarks(YEAR_TO_PAGE_TO_MAJORS[2026]),
   };
 
   const svgCache = new Map<string, SvgPage>();
@@ -609,6 +610,13 @@
         title="2025 (h/l)"
       >
         2025
+      </button>
+      <button
+        onclick={() => selectYear(2026)}
+        aria-current={mode === "picker" && year === 2026 ? "true" : undefined}
+        title="2026 (h/l)"
+      >
+        2026
       </button>
       <button
         onclick={enterPreview}
@@ -1160,6 +1168,9 @@
     }
     &[data-year="2025"] {
       background-color: oklch($l $c 240);
+    }
+    &[data-year="2026"] {
+      background-color: oklch($l $c 60);
     }
 
     &[aria-current="true"] {
