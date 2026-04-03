@@ -360,8 +360,9 @@
   async function handleOpenInVenusaur() {
     const image = currentImage;
     if (!image) return;
-    const text = await (await fetch(image.blobUrl)).text();
-    localStorage.setItem("butterfree-to-venusaur", text);
+    const svg = await (await fetch(image.blobUrl)).text();
+    const major = (YEAR_TO_PAGE_TO_MAJORS[year][picker.page] ?? [])[0];
+    localStorage.setItem("butterfree-to-venusaur", JSON.stringify({ major, svg }));
     window.open("https://rjooske.github.io/akiko-venusaur/", "_blank");
   }
 
