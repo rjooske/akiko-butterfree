@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@types/svg-path-parser": "^1.1.6",
+    "fflate": "^0.8.2",
     "papaparse": "^5.5.3",
     "svg-parser": "^2.0.4",
     "svg-path-parser": "^1.1.0"

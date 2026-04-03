@@ -18,6 +18,7 @@
   import { parseSvg } from "$lib/svg";
   import { Throttle, minByKey, unreachable } from "$lib/util";
   import { tick } from "svelte";
+  import { zipSync, strToU8 } from "fflate";
 
   const STORAGE_KEY = "akiko-butterfree";
 
@@ -374,6 +375,31 @@
     a.click();
   }
 
+  async function handleDownloadAll() {
+    const files: Record<string, Uint8Array> = {};
+    for (const { page, names } of bookmarks[year]) {
+      const key = svgKey(year, page);
+      let svgText: string;
+      if (svgCache.has(key)) {
+        svgText = await (await fetch(svgCache.get(key)!.blobUrl)).text();
+      } else {
+        svgText = await (await fetch(svgUrl(year, page))).text();
+      }
+      const bytes = strToU8(svgText);
+      for (const name of names) {
+        files[`${name}.svg`] = bytes;
+      }
+    }
+    const zip = zipSync(files);
+    const blob = new Blob([zip.buffer as ArrayBuffer], { type: "application/zip" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pages-${year}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleAddCurrentPage() {
     const c = picker.corners[picker.page];
     if (!c?.topLeft || !c?.bottomRight) return;
@@ -670,6 +696,9 @@
           title="ダウンロード (w)"
         >
           ダウンロード
+        </button>
+        <button class="btn" onclick={handleDownloadAll}>
+          全ページダウンロード
         </button>
         <button
           class="btn"
